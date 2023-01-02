@@ -17,19 +17,16 @@ public:
     blocking(int);
 
     SimSpace lattice; // define the coarse lattice
-    int L; // length of lattice (number of sites)
-    int Lfine; // fine grid
+    int L;   // length of lattice (number of sites)
     int dim; // dimensionality of lattice
 
     int nL;
-    int nLfine;
 
     int bshift;
 
-    int nvols;
+    int nsites;
 
     int get_cell(int,int,int,int,int,int,int);
-    double separation(double[3],double[3]);
 
     ~blocking(); 
 

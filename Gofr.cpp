@@ -24,117 +24,78 @@ using namespace std;
 
 Gofr::Gofr()
 {
-    L = lattice.L; // length of lattice (number of sites)
-    Lfine = lattice.Lfine; // fine grid
-
+    L   = lattice.L;   // length of lattice (number of sites)
     dim = lattice.dim; // dimensionality of lattice
-
-    nL = pow(L,dim);
+    nL  = pow(L,dim);
 
     rbins = 100+1; // resolution of rdf
 
     mem_test = false;
     initarrays();
-
 }
 
-void Gofr::vaprdf(int* n, double* gofr_vap)
+void Gofr::rdf(int* n, double* gofr)
 {
     int i,j;
 
     double ri[3];
     double rj[3];
-    double d[3];
-    double rmag;
+    double r;
     int bin_ij;
 	
-    double volume,density;
+    double volume, density;
 
     int dimR;
 
-    dr = L/(double)(rbins-1);
+    dr = L / (double)(rbins - 1);
 
     for (i=0; i<rbins; i++)
     {
-        r[i] = i*dr;
+        r[i]     = i*dr;
         nhist[i] = 0;
         n_ave[i] = 0.0;
         bin_vols[i] = 0.0;
-        n_ideal[i] = 0.0;
+        n_ideal[i]  = 0.0;
     }
 
-    int nvap;
-    nvap = 0;
+    sites = (int*) calloc (nL, sizeof(int));
 
-    for (i=0; i<nL; i++)
-    {
-        if (n[i]==0)
-        {
-            nvap++;
-        }
-    }
-
-    // create an array of the vapor sites
-
-    int* vapsites;
-    vapsites = (int*) calloc (nvap, sizeof(int));
+    int nsites;
 
     j = 0;
     for (i=0; i<nL; i++)
     {
         if (n[i]==0)
         {
-            vapsites[j] = i;
+            sites[j] = i;
             j++;
         }
     }
+    nsites = j;
 
-    // calculate radial distribution function for the vapor sites
-    for (j=0; j<rbins; j++)
+    // calculate radial distribution function
+    for (i=0; i<rbins; i++)
     {
-        gofr_vap[j] = 0.0;
+        gofr[i] = 0.0;
     }
 
     int ii,jj;
 
-    for (i=0; i<(int)(nvap-1); i++)
+    for (i=0; i<(int)(nsites - 1); i++)
     {
-        ii = vapsites[i];
+        ii = sites[i];
 
-        ri[2] = (int)(ii % L) + 0.5;
-        ri[1] = ((int)((int)(ii-(int)(ii % L))/L) % L) + 0.5;
-        ri[0] = ((int)((int)(ii-(int)(ii % L)-(int)((int)(ii-(int)(ii % L)/L) % L)*L)/pow(L,2)) % L) + 0.5;
+        ri = lattice.unpack_position(ii);
 
-        for (j=(i+1); j<nvap; j++)
+        for (j=(i+1); j<(int)(nsites - 1); j++)
         {
-            jj = vapsites[j];
+            jj = sites[j];
 
-            rj[2] = (int)(jj % L) + 0.5;
-            rj[1] = ((int)((int)(jj-(int)(jj % L))/L) % L) + 0.5;
-            rj[0] = ((int)((int)(jj-(int)(jj % L)-(int)((int)(jj-(int)(jj % L)/L) % L)*L)/pow(L,2)) % L) + 0.5;
+            rj = lattice.unpack_position(jj);
 
-            d[0] = 0.0;
-            d[1] = 0.0;
-            d[2] = 0.0;
+            r  = lattice.separation(ri, rj);
 
-            for (dimR=0; dimR<dim; dimR++)
-            {
-                if ((ri[dimR]-rj[dimR])>(double)(0.5*L))
-                {
-                    d[dimR] = ri[dimR] - rj[dimR] - L;
-                }
-                else if((ri[dimR]-rj[dimR])<(double)(-0.5*L))
-                {
-                    d[dimR] = ri[dimR] - rj[dimR] + L;
-                }
-                else
-                {
-                    d[dimR] = ri[dimR] - rj[dimR];
-                }
-            }
-            rmag = sqrt(pow(d[0],2) + pow(d[1],2) + pow(d[2],2));
-
-            bin_ij = ceil(rmag/dr);
+            bin_ij = ceil(r / dr);
 
             if ( (bin_ij <= rbins) && (bin_ij > 0) )
             {
@@ -144,149 +105,28 @@ void Gofr::vaprdf(int* n, double* gofr_vap)
     }
 
     volume = nL;
-    density = nvap/(double)volume;
+    density = nsites / (double)volume;
 
     for (i=0; i<rbins; i++)
     {
-        n_ave[i] = 2*nhist[i]/(double)nvap;
-        bin_vols[i] = (4*PI/3)*( pow(r[i]+dr,3) - pow(r[i],3) );
-        n_ideal[i] = density*bin_vols[i];
-        gofr_vap[i] = n_ave[i]/n_ideal[i];
+        n_ave[i]    = 2 * nhist[i] / (double)nsites;
+        bin_vols[i] = (4*PI/3) * ( pow(r[i] + dr, 3) - pow(r[i], 3) );
+        n_ideal[i]  = density * bin_vols[i];
+        gofr[i]     = n_ave[i] / n_ideal[i];
 
     }
 
-    delete [] vapsites;
-
-}
-
-void Gofr::liqrdf(double* v, double* gofr_liq)
-{
-    int i,j;
-
-    double ri[3];
-    double rj[3];
-    double d[3];
-    double rmag;
-    int bin_ij;
-	
-    double volume,density;
-
-    int dimR;
-
-    dr = L/(double)(rbins-1);
-
-    for (i=0; i<rbins; i++)
-    {
-        r[i] = i*dr;
-        nhist[i] = 0;
-        n_ave[i] = 0.0;
-        bin_vols[i] = 0.0;
-        n_ideal[i] = 0.0;
-    }
-
-    int nliq;
-    nliq = 0;
-
-    for (i=0; i<nL; i++)
-    {
-        if (v[i]<=0.25)
-        {
-            nliq++;
-        }
-    }
-
-    // create an array of the liquid sites
-
-    int* liqsites;
-    liqsites = (int*) calloc (nliq, sizeof(int));
-
-    j = 0;
-    for (i=0; i<nL; i++)
-    {
-        if (v[i]<=0.25)
-        {
-            liqsites[j] = i;
-            j++;
-        }
-    }
-
-    // calculate radial distribution function for the liquid sites
-    for (j=0; j<rbins; j++)
-    {
-        gofr_liq[j] = 0.0;
-    }
-
-    int ii,jj;
-
-    for (i=0; i<(int)(nliq-1); i++)
-    {
-        ii = liqsites[i];
-
-        ri[2] = (int)(ii % L) + 0.5;
-        ri[1] = ((int)((int)(ii-(int)(ii % L))/L) % L) + 0.5;
-        ri[0] = ((int)((int)(ii-(int)(ii % L)-(int)((int)(ii-(int)(ii % L)/L) % L)*L)/pow(L,2)) % L) + 0.5;
-
-        for (j=(i+1); j<nliq; j++)
-        {
-            jj = liqsites[j];
-
-            rj[2] = (int)(jj % L) + 0.5;
-            rj[1] = ((int)((int)(jj-(int)(jj % L))/L) % L) + 0.5;
-            rj[0] = ((int)((int)(jj-(int)(jj % L)-(int)((int)(jj-(int)(jj % L)/L) % L)*L)/pow(L,2)) % L) + 0.5;
-
-            d[0] = 0.0;
-            d[1] = 0.0;
-            d[2] = 0.0;
-
-            for (dimR=0; dimR<dim; dimR++)
-            {
-                if ((ri[dimR]-rj[dimR])>(double)(0.5*L))
-                {
-                    d[dimR] = ri[dimR] - rj[dimR] - L;
-                }
-                else if((ri[dimR]-rj[dimR])<(double)(-0.5*L))
-                {
-                    d[dimR] = ri[dimR] - rj[dimR] + L;
-                }
-                else
-                {
-                    d[dimR] = ri[dimR] - rj[dimR];
-                }
-            }
-            rmag = sqrt(pow(d[0],2) + pow(d[1],2) + pow(d[2],2));
-
-            bin_ij = ceil(rmag/dr);
-
-            if ( (bin_ij <= rbins) && (bin_ij > 0) )
-            {
-                nhist[bin_ij-1] = nhist[bin_ij-1] + 1;
-            }
-        }
-    }
-
-    volume = nL;
-    density = nliq/(double)volume;
-
-    for (i=0; i<rbins; i++)
-    {
-        n_ave[i] = 2*nhist[i]/(double)nliq;
-        bin_vols[i] = (4*PI/3)*( pow(r[i]+dr,3) - pow(r[i],3) );
-        n_ideal[i] = density*bin_vols[i];
-        gofr_liq[i] = n_ave[i]/n_ideal[i];
-
-    }
-
-    delete [] liqsites;
+    delete [] sites;
 
 }
 
 void Gofr::initarrays()
 {
-    r = (double*) calloc (rbins, sizeof(double));
+    r     = (double*) calloc (rbins, sizeof(double));
     nhist = (int*) calloc (rbins, sizeof(int));
     n_ave = (double*) calloc (rbins, sizeof(double));
     bin_vols = (double*) calloc (rbins, sizeof(double));
-    n_ideal = (double*) calloc (rbins, sizeof(double));
+    n_ideal  = (double*) calloc (rbins, sizeof(double));
 
     mem_test = true;
 }

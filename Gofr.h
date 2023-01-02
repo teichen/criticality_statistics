@@ -16,13 +16,11 @@ public:
     Gofr();
 
     SimSpace lattice; // define the coarse lattice
-    int L; // length of lattice (number of sites)
-    int Lfine; // fine grid
+    int L;   // length of lattice (number of sites)
     int dim; // dimensionality of lattice
     int nL;
 
-    void vaprdf(int*,double*);
-    void liqrdf(double*,double*);
+    void rdf(int*,double*);
     void initarrays();
 
     double dr,rL;
