@@ -25,7 +25,9 @@ public:
 
     double dr,rL;
     int rbins;
-   
+
+    int* sites;
+
     double* r;
     int* nhist;
     double* n_ave;

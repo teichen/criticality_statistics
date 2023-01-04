@@ -18,7 +18,7 @@ SimSpace::SimSpace()
     dim = 3;
 }
 
-double SimSpace::separation(double r1[3], double r2[3])
+double SimSpace::separation(int r1[3], int r2[3])
 {
     double d[3];
     d[0] = 0.0; d[1] = 0.0; d[2] = 0.0;

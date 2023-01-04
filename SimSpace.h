@@ -18,7 +18,7 @@ public:
     int L; // length of lattice (number of sites)
     int dim; // dimensionality of lattice
 
-    double separation(double[3],double[3]);
+    double separation(int[3],int[3]);
 
     int* unpack_position(int);
 

@@ -1,0 +1,4 @@
+# DEPENDENCIES:
+clang
+libomp
+gsl

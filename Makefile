@@ -1,12 +1,19 @@
 SHELL = /bin/sh
 
 # make clean
+# make all
+# make criticality_stats
 
-OBJS = 
+OBJS = SimSpace.o Gofr.o pca.o blocking.o
 CFLAGS =
 CC = clang++
 INCLUDES = 
-LIBS =
+LIBS = omp
+
+all:criticality_stats
+
+criticality_stats:${OBJS}
+	${CC} ${CFLAGS} ${INCLUDES} -o $@ ${OBJS} ${LIBS}
 
 clean:
 	-rm -f *.o core *.core *.dat

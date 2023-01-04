@@ -38,9 +38,10 @@ void Gofr::rdf(int* n, double* gofr)
 {
     int i,j;
 
-    double ri[3];
-    double rj[3];
-    double r;
+    int* ri;
+    int* rj;
+
+    double separation;
     int bin_ij;
 	
     double volume, density;
@@ -93,9 +94,9 @@ void Gofr::rdf(int* n, double* gofr)
 
             rj = lattice.unpack_position(jj);
 
-            r  = lattice.separation(ri, rj);
+            separation = lattice.separation(ri, rj);
 
-            bin_ij = ceil(r / dr);
+            bin_ij = ceil(separation / dr);
 
             if ( (bin_ij <= rbins) && (bin_ij > 0) )
             {
@@ -115,9 +116,7 @@ void Gofr::rdf(int* n, double* gofr)
         gofr[i]     = n_ave[i] / n_ideal[i];
 
     }
-
     delete [] sites;
-
 }
 
 void Gofr::initarrays()
@@ -133,7 +132,7 @@ void Gofr::initarrays()
 
 Gofr::~Gofr()
 {
-    if(mem_test=true)
+    if(mem_test==true)
     {
     delete [] r;
     delete [] nhist;
