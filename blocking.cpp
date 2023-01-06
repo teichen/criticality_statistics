@@ -30,13 +30,19 @@ using namespace std;
 
 blocking::blocking()
 {
+    lattice.set_dimensions(1);
+    L   = lattice.L; // length of lattice (number of sites)
+    dim = lattice.dim; // dimensionality of lattice
+    nL  = pow(L,dim);
 }
 
 blocking::blocking(int b)
 {
-    L   = lattice.L; // length of lattice (number of sites)
-    dim = lattice.dim; // dimensionality of lattice
-    nL  = pow(L,dim);
+    coarse_lattice.set_dimensions(b);
+    Lb = coarse_lattice.L;
+
+    //lattice_map(L, b, bshift);
+    //lattice_map.U_L_Lb; // the coarse cell that each original lattice site belongs to
 
     int n_configs;
     n_configs = 20;
@@ -57,7 +63,7 @@ blocking::blocking(int b)
     int n[nL];
 
     // coarse-grained n (average per cell)
-    double ni[(int)pow(L/b,dim)];
+    double nb[(int)pow(Lb,dim)];
 
     // collective variables for each MC config
     double n_1; // sum\, n_i
@@ -89,9 +95,9 @@ blocking::blocking(int b)
 
     double nn_i,nn_j,nn_k,nn_l;
 
-    for (i=0; i<(int)(pow(L/b,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
     {
-        ni[i] = 0.0;
+        nb[i] = 0.0;
     }
 
     int config;
@@ -128,9 +134,9 @@ blocking::blocking(int b)
 
         ib = 0; jb = 0; kb = 0;
 
-        for (i=0; i<(int)(pow(L/b,dim)); i++)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            ni[i] = 0.0;
+            nb[i] = 0.0;
         }
 
         n_1 = 0.0; n0 = 0.0; n1 = 0.0; n2 = 0.0; n3 = 0.0; n4 = 0.0; n5 = 0.0; n6 = 0.0;
@@ -141,19 +147,19 @@ blocking::blocking(int b)
 
         celli = 0; cellj = 0; cellk = 0; celll = 0;
 
-    #pragma omp parallel for shared (n,ni) private (i,j,k,celli,nn,ib,jb,kb)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (n,nb) private (i,j,k,celli,nn,ib,jb,kb)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // calculate average n for this cell block
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
 
         #pragma omp atomic write
-                    ni[celli] = 0.0;
+                    nb[celli] = 0.0;
 
                     nn = 0.0;
 
@@ -224,7 +230,7 @@ blocking::blocking(int b)
                                 }
 
         #pragma omp atomic write
-                                ni[celli] = ni[celli] + nn;
+                                nb[celli] = nb[celli] + nn;
 
                             }
                         }
@@ -233,428 +239,428 @@ blocking::blocking(int b)
             }
         }
 
-    #pragma omp parallel for shared (n,ni) private (i,j,k,celli,nn) reduction(+:n_1)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (n,nb) private (i,j,k,celli,nn) reduction(+:n_1)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
 
         #pragma omp atomic read
-                    nn = ni[celli];
+                    nn = nb[celli];
 
         #pragma omp atomic write
-                    ni[celli] = nn/(double)(pow(b,dim));
+                    nb[celli] = nn/(double)(pow(b,dim));
 
                     n_1 += nn/(double)(pow(b,dim));
                 }
             }
         }
 
-        ndump.open("ni.dat", std::ios_base::app);
+        ndump.open("nb.dat", std::ios_base::app);
 
-        for (i=0; i<(int)(pow(L/b,dim)); i++)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            ndump << ni[i] << "\n";
+            ndump << nb[i] << "\n";
         }
         ndump.close();
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n0)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n0)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_NN\, n_i * n_i+1 (i=x,y,z)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,0,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n0 += nn_i*nn_j;
 
                     cellj = get_cell(i,j,k,0,1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n0 += nn_i*nn_j;
 
                     cellj = get_cell(i,j,k,0,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n0 += nn_i*nn_j;
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n1)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n1)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_{diagonal in plane}\, n_i * n_j
                     // e.g. n_(0,0,0) * n_(1,1,0)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,-1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,0,-1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,0,1,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,0,1,-1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n1 += nn_i*nn_j; 
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n2)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n2)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_{cubic diagonal}\, n_i * n_j
                     // e.g. n_(0,0,0) * n_(1,1,1)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,1,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n2 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,1,-1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n2 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,-1,-1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n2 += nn_i*nn_j; 
 
                     cellj = get_cell(i,j,k,1,-1,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n2 += nn_i*nn_j; 
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_{principal planes}\, n_i * n_j * n_k * n_l
                     // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,0,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,1,0,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,0,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n3 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,1,0,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,0,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,0,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n3 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,0,1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,0,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,0,1,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n3 += nn_i*nn_j*nn_k*nn_l; 
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n4)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n4)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
                     // e.g. n_(0,0,0) * n_(1,0,0) * n_(0,1,1) * n_(1,1,1)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,0,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,1,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,1,0,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,1,-1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,-1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,0,1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,1,0,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,0,1,0,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,1,0,-1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,-1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,0,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,1,1,0,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,0,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,1,-1,0,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,-1,1,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n4 += nn_i*nn_j*nn_k*nn_l; 
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n5)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n5)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
                     // e.g. n_(0,0,0) * n_(1,0,1) * n_(0,1,1) * n_(1,1,0)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     cellj = get_cell(i,j,k,1,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,1,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,1,0,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n5 += nn_i*nn_j*nn_k*nn_l; 
 
                     cellj = get_cell(i,j,k,1,0,1,b);
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     cellk = get_cell(i,j,k,0,-1,1,b);
 
         #pragma omp atomic read
-                    nn_k = ni[cellk];
+                    nn_k = nb[cellk];
 
                     celll = get_cell(i,j,k,1,-1,0,b);
 
         #pragma omp atomic read
-                    nn_l = ni[celll];
+                    nn_l = nb[celll];
 
                     n5 += nn_i*nn_j*nn_k*nn_l; 
                 }
             }
         }
 
-    #pragma omp parallel for shared (ni) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n6)
-        for (i=0; i<(int)(L/b); i++)
+    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n6)
+        for (i=0; i<Lb; i++)
         {
-            for (j=0; j<(int)(L/b); j++)
+            for (j=0; j<Lb; j++)
             {
-                for (k=0; k<(int)(L/b); k++)
+                for (k=0; k<Lb; k++)
                 {
                     // sum_NNN\, n_i * n_i+2 (i=x,y,z)
 
-                    celli = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = ni[celli];
+                    nn_i = nb[celli];
 
                     //cellj = get_cell(i,j,k,2,0,0,b); 
-                    if (i==((L/b)-1))
+                    if (i==((Lb)-1))
                     {
                         cellj = get_cell(0,j,k,1,0,0,b);
                     }
@@ -664,12 +670,12 @@ blocking::blocking(int b)
                     }
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n6 += nn_i*nn_j; 
 
                     //cellj = get_cell(i,j,k,0,2,0,b); 
-                    if (j==((L/b)-1))
+                    if (j==((Lb)-1))
                     {
                         cellj = get_cell(i,0,k,0,1,0,b);
                     }
@@ -679,12 +685,12 @@ blocking::blocking(int b)
                     }
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n6 += nn_i*nn_j; 
 
                     //cellj = get_cell(i,j,k,0,0,2,b); 
-                    if (k==((L/b)-1))
+                    if (k==((Lb)-1))
                     {
                         cellj = get_cell(i,j,0,0,0,1,b);
                     }
@@ -694,7 +700,7 @@ blocking::blocking(int b)
                     }
 
         #pragma omp atomic read
-                    nn_j = ni[cellj];
+                    nn_j = nb[cellj];
 
                     n6 += nn_i*nn_j; 
                 }
@@ -732,319 +738,319 @@ int blocking::get_cell(int i, int j, int k, int dir_i, int dir_j, int dir_k, int
 {
     int cell;
 
-    if ((dir_i==1)&&(i==((L/b)-1)))
+    if ((dir_i==1)&&(i==((Lb)-1)))
     {
-        if ((dir_j==1)&&(j==((L/b)-1)))
+        if ((dir_j==1)&&(j==((Lb)-1)))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(0*pow(L/b,2)+0*(L/b)+0);
+                cell = (int)(0*pow(Lb,2)+0*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(0*pow(L/b,2)+0*(L/b)+((L/b)-1));
+                cell = (int)(0*pow(Lb,2)+0*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(0*pow(L/b,2)+0*(L/b)+k);
+                cell = (int)(0*pow(Lb,2)+0*(Lb)+k);
             }
             else
             {
-                cell = (int)(0*pow(L/b,2)+0*(L/b)+(k+dir_k));
+                cell = (int)(0*pow(Lb,2)+0*(Lb)+(k+dir_k));
             }
         }
         else if ((dir_j==(-1))&&(j==0))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(0*pow(L/b,2)+((L/b)-1)*(L/b)+0);
+                cell = (int)(0*pow(Lb,2)+((Lb)-1)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(0*pow(L/b,2)+((L/b)-1)*(L/b)+((L/b)-1));
+                cell = (int)(0*pow(Lb,2)+((Lb)-1)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(0*pow(L/b,2)+((L/b)-1)*(L/b)+k);
+                cell = (int)(0*pow(Lb,2)+((Lb)-1)*(Lb)+k);
             }
             else
             {
-                cell = (int)(0*pow(L/b,2)+((L/b)-1)*(L/b)+(k+dir_k));
+                cell = (int)(0*pow(Lb,2)+((Lb)-1)*(Lb)+(k+dir_k));
             }
         }
         else if (dir_j==0)
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(0*pow(L/b,2)+j*(L/b)+0);
+                cell = (int)(0*pow(Lb,2)+j*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(0*pow(L/b,2)+j*(L/b)+((L/b)-1));
+                cell = (int)(0*pow(Lb,2)+j*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(0*pow(L/b,2)+j*(L/b)+k);
+                cell = (int)(0*pow(Lb,2)+j*(Lb)+k);
             }
             else
             {
-                cell = (int)(0*pow(L/b,2)+j*(L/b)+(k+dir_k));
+                cell = (int)(0*pow(Lb,2)+j*(Lb)+(k+dir_k));
             }
         }
         else
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(0*pow(L/b,2)+(j+dir_j)*(L/b)+0);
+                cell = (int)(0*pow(Lb,2)+(j+dir_j)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(0*pow(L/b,2)+(j+dir_j)*(L/b)+((L/b)-1));
+                cell = (int)(0*pow(Lb,2)+(j+dir_j)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(0*pow(L/b,2)+(j+dir_j)*(L/b)+k);
+                cell = (int)(0*pow(Lb,2)+(j+dir_j)*(Lb)+k);
             }
             else
             {
-                cell = (int)(0*pow(L/b,2)+(j+dir_j)*(L/b)+(k+dir_k));
+                cell = (int)(0*pow(Lb,2)+(j+dir_j)*(Lb)+(k+dir_k));
             }
         }
     }
     else if ((dir_i==(-1))&&(i==0))
     {
-        if ((dir_j==1)&&(j=((L/b)-1)))
+        if ((dir_j==1)&&(j=((Lb)-1)))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+0*(L/b)+0);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+0*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+0*(L/b)+((L/b)-1));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+0*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+0*(L/b)+k);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+0*(Lb)+k);
             }
             else
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+0*(L/b)+(k+dir_k));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+0*(Lb)+(k+dir_k));
             }
         }
         else if ((dir_j==(-1))&&(j==0))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+(L-1)*(L/b)+0);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+(L-1)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+((L/b)-1)*(L/b)+((L/b)-1));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+((Lb)-1)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+((L/b)-1)*(L/b)+k);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+((Lb)-1)*(Lb)+k);
             }
             else
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+((L/b)-1)*(L/b)+(k+dir_k));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+((Lb)-1)*(Lb)+(k+dir_k));
             }
         }
         else if (dir_j==0)
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+j*(L/b)+0);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+j*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+j*(L/b)+((L/b)-1));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+j*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+j*(L/b)+k);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+j*(Lb)+k);
             }
             else
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+j*(L/b)+(k+dir_k));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+j*(Lb)+(k+dir_k));
             }
         }
         else
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+(j+dir_j)*(L/b)+0);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+(j+dir_j)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+(j+dir_j)*(L/b)+((L/b)-1));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+(j+dir_j)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+(j+dir_j)*(L/b)+k);
+                cell = (int)(((Lb)-1)*pow(Lb,2)+(j+dir_j)*(Lb)+k);
             }
             else
             {
-                cell = (int)(((L/b)-1)*pow(L/b,2)+(j+dir_j)*(L/b)+(k+dir_k));
+                cell = (int)(((Lb)-1)*pow(Lb,2)+(j+dir_j)*(Lb)+(k+dir_k));
             }
         }
     }
     else if (dir_i==0)
     {
-        if ((dir_j==1)&&(j=((L/b)-1)))
+        if ((dir_j==1)&&(j=((Lb)-1)))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(i*pow(L/b,2)+0*(L/b)+0);
+                cell = (int)(i*pow(Lb,2)+0*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(i*pow(L/b,2)+0*(L/b)+((L/b)-1));
+                cell = (int)(i*pow(Lb,2)+0*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(i*pow(L/b,2)+0*(L/b)+k);
+                cell = (int)(i*pow(Lb,2)+0*(Lb)+k);
             }
             else
             {
-                cell = (int)(i*pow(L/b,2)+0*(L/b)+(k+dir_k));
+                cell = (int)(i*pow(Lb,2)+0*(Lb)+(k+dir_k));
             }
         }
         else if ((dir_j==(-1))&&(j==0))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(i*pow(L/b,2)+((L/b)-1)*(L/b)+0);
+                cell = (int)(i*pow(Lb,2)+((Lb)-1)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(i*pow(L/b,2)+((L/b)-1)*(L/b)+((L/b)-1));
+                cell = (int)(i*pow(Lb,2)+((Lb)-1)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(i*pow(L/b,2)+((L/b)-1)*(L/b)+k);
+                cell = (int)(i*pow(Lb,2)+((Lb)-1)*(Lb)+k);
             }
             else
             {
-                cell = (int)(i*pow(L/b,2)+((L/b)-1)*(L/b)+(k+dir_k));
+                cell = (int)(i*pow(Lb,2)+((Lb)-1)*(Lb)+(k+dir_k));
             }
         }
         else if (dir_j==0)
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(i*pow(L/b,2)+j*(L/b)+0);
+                cell = (int)(i*pow(Lb,2)+j*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(i*pow(L/b,2)+j*(L/b)+((L/b)-1));
+                cell = (int)(i*pow(Lb,2)+j*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(i*pow(L/b,2)+j*(L/b)+k);
+                cell = (int)(i*pow(Lb,2)+j*(Lb)+k);
             }
             else
             {
-                cell = (int)(i*pow(L/b,2)+j*(L/b)+(k+dir_k));
+                cell = (int)(i*pow(Lb,2)+j*(Lb)+(k+dir_k));
             }
         }
         else
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)(i*pow(L/b,2)+(j+dir_j)*(L/b)+0);
+                cell = (int)(i*pow(Lb,2)+(j+dir_j)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)(i*pow(L/b,2)+(j+dir_j)*(L/b)+((L/b)-1));
+                cell = (int)(i*pow(Lb,2)+(j+dir_j)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)(i*pow(L/b,2)+(j+dir_j)*(L/b)+k);
+                cell = (int)(i*pow(Lb,2)+(j+dir_j)*(Lb)+k);
             }
             else
             {
-                cell = (int)(i*pow(L/b,2)+(j+dir_j)*(L/b)+(k+dir_k));
+                cell = (int)(i*pow(Lb,2)+(j+dir_j)*(Lb)+(k+dir_k));
             }
         }
     }
     else
     {
-        if ((dir_j==1)&&(j=((L/b)-1)))
+        if ((dir_j==1)&&(j=((Lb)-1)))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+0*(L/b)+0);
+                cell = (int)((i+dir_i)*pow(Lb,2)+0*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+0*(L/b)+((L/b)-1));
+                cell = (int)((i+dir_i)*pow(Lb,2)+0*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+0*(L/b)+k);
+                cell = (int)((i+dir_i)*pow(Lb,2)+0*(Lb)+k);
             }
             else
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+0*(L/b)+(k+dir_k));
+                cell = (int)((i+dir_i)*pow(Lb,2)+0*(Lb)+(k+dir_k));
             }
         }
         else if ((dir_j==(-1))&&(j==0))
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+((L/b)-1)*(L/b)+0);
+                cell = (int)((i+dir_i)*pow(Lb,2)+((Lb)-1)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+((L/b)-1)*(L/b)+((L/b)-1));
+                cell = (int)((i+dir_i)*pow(Lb,2)+((Lb)-1)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+((L/b)-1)*(L/b)+k);
+                cell = (int)((i+dir_i)*pow(Lb,2)+((Lb)-1)*(Lb)+k);
             }
             else
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+((L/b)-1)*(L/b)+(k+dir_k));
+                cell = (int)((i+dir_i)*pow(Lb,2)+((Lb)-1)*(Lb)+(k+dir_k));
             }
         }
         else if (dir_j==0)
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+j*(L/b)+0);
+                cell = (int)((i+dir_i)*pow(Lb,2)+j*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+j*(L/b)+((L/b)-1));
+                cell = (int)((i+dir_i)*pow(Lb,2)+j*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+j*(L/b)+k);
+                cell = (int)((i+dir_i)*pow(Lb,2)+j*(Lb)+k);
             }
             else
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+j*(L/b)+(k+dir_k));
+                cell = (int)((i+dir_i)*pow(Lb,2)+j*(Lb)+(k+dir_k));
             }
         }
         else
         {
-            if ((dir_k==1)&&(k==((L/b)-1)))
+            if ((dir_k==1)&&(k==((Lb)-1)))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+(j+dir_j)*(L/b)+0);
+                cell = (int)((i+dir_i)*pow(Lb,2)+(j+dir_j)*(Lb)+0);
             }
             else if ((dir_k==(-1))&&(k==0))
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+(j+dir_j)*(L/b)+((L/b)-1));
+                cell = (int)((i+dir_i)*pow(Lb,2)+(j+dir_j)*(Lb)+((Lb)-1));
             }
             else if (dir_k==0)
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+(j+dir_j)*(L/b)+k);
+                cell = (int)((i+dir_i)*pow(Lb,2)+(j+dir_j)*(Lb)+k);
             }
             else
             {
-                cell = (int)((i+dir_i)*pow(L/b,2)+(j+dir_j)*(L/b)+(k+dir_k));
+                cell = (int)((i+dir_i)*pow(Lb,2)+(j+dir_j)*(Lb)+(k+dir_k));
             }
         }
     }

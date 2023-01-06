@@ -18,6 +18,11 @@ SimSpace::SimSpace()
     dim = 3;
 }
 
+void SimSpace::set_dimensions(int b)
+{
+    L = L / b;
+}
+
 double SimSpace::separation(int* r1, int* r2)
 {
     double d[3];
@@ -66,10 +71,8 @@ int SimSpace::flatten_position(int i, int j, int k)
     return n;
 }
 
-int* SimSpace::nearest_neighbors(int* r)
+void SimSpace::nearest_neighbors(int* r, int nn[3])
 {
-    static int nn[3];
-
     if (r[0] == (L-1))
     {
         nn[0] =(int)(0*pow(L,2) + r[1]*L + r[2]);
@@ -94,19 +97,13 @@ int* SimSpace::nearest_neighbors(int* r)
     {
         nn[2] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]+1);
     }
-
-    return nn;
 }
 
-int* SimSpace::nearest_neighbor_values(int* n, int* nn)
+void SimSpace::nearest_neighbor_values(int* n, int* nn, int nn_vals[3])
 {
-    static int nn_vals[3];
-
     nn_vals[0] = n[nn[0]];
     nn_vals[1] = n[nn[1]];
     nn_vals[2] = n[nn[2]];
-
-    return nn_vals;
 }
 
 SimSpace::~SimSpace()

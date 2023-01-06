@@ -20,6 +20,9 @@ public:
     int L;   // length of lattice (number of sites)
     int dim; // dimensionality of lattice
 
+    SimSpace coarse_lattice;
+    int Lb;
+
     int nL;
 
     int bshift;

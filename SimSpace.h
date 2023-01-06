@@ -18,14 +18,16 @@ public:
     int L; // length of lattice (number of sites)
     int dim; // dimensionality of lattice
 
+    void set_dimensions(int);
+
     double separation(int*, int*);
 
     void unpack_position(int, int[3]);
 
     int flatten_position(int, int, int);
 
-    int* nearest_neighbors(int*);
-    int* nearest_neighbor_values(int*, int*);
+    void nearest_neighbors(int*, int[3]);
+    void nearest_neighbor_values(int*, int*, int[3]);
 
     ~SimSpace(); 
 
