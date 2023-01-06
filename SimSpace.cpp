@@ -18,7 +18,7 @@ SimSpace::SimSpace()
     dim = 3;
 }
 
-double SimSpace::separation(int r1[3], int r2[3])
+double SimSpace::separation(int* r1, int* r2)
 {
     double d[3];
     d[0] = 0.0; d[1] = 0.0; d[2] = 0.0;
@@ -28,17 +28,17 @@ double SimSpace::separation(int r1[3], int r2[3])
 
     for (dimR = 0; dimR < dim; dimR++)
     {
-        if ((r1[dimR] - r2[dimR]) > (double)(L/2))
+        if ((double)(r1[dimR] - r2[dimR]) > (double)(L/2))
         {
-            d[dimR] = r1[dimR] - r2[dimR] - L;
+            d[dimR] = (double)(r1[dimR] - r2[dimR] - L);
         }
-        else if((r1[dimR] - r2[dimR]) < (double)(-L/2))
+        else if((double)(r1[dimR] - r2[dimR]) < (double)(-L/2))
         {
-            d[dimR] = r1[dimR] - r2[dimR] + L;
+            d[dimR] = (double)(r1[dimR] - r2[dimR] + L);
         }
         else
         {
-            d[dimR] = r1[dimR] - r2[dimR];
+            d[dimR] = (double)(r1[dimR] - r2[dimR]);
         }
     }
 
@@ -47,18 +47,14 @@ double SimSpace::separation(int r1[3], int r2[3])
     return r;
 }
 
-int* SimSpace::unpack_position(int n)
+void SimSpace::unpack_position(int n, int r[3])
 {
     // z = i % L;
     // y = (i-z) % pow(L,2);
     // x = (i-z-y*L) % pow(L,dim);
-    static int r[3];
-
     r[2] = n % L;
     r[1] = (int)((n - r[2]) / L) % L;
     r[0] = (int)((n - r[2] - r[1] * L) / pow(L, 2)) % L;
-    
-    return r;
 }
 
 int SimSpace::flatten_position(int i, int j, int k)

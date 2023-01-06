@@ -26,14 +26,30 @@ int main()
     }
     for (i=0; i<gofr.nL; i++)
     {
-        n[i] = 2*(rand() % 2)-1;
+        //n[i] = 2*(rand() % 2)-1;
+        n[i] = -1;
     }
+    n[0] = 1;
+    n[2] = 1;
 
     gofr.rdf(n, g);
 
+    double dr;
+    dr = gofr.L / (double)(gofr.rbins - 1);
+
+    int bin_02;
+    bin_02 = ceil(2.0 / dr);
+
     for (i=0; i<gofr.rbins; i++)
     {
-        cout << g[i] << endl;
+        if(i==(int)(bin_02-1))
+        {
+            assert(g[i]>0);
+        }
+        else
+        {
+            assert(g[i]==0);
+        }
     }
 }
 

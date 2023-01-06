@@ -2,6 +2,8 @@
 #ifndef _PCA
 #define _PCA
 
+#include <iostream>
+
 using namespace std;
 
 class pca

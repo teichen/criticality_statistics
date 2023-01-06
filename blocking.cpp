@@ -47,6 +47,8 @@ blocking::blocking(int b)
     ifstream fin;
     string line;
 
+    std::ofstream ndump;
+
     int i,j,k;
     int ib,jb,kb;
 

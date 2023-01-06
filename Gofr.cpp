@@ -38,8 +38,8 @@ void Gofr::rdf(int* n, double* gofr)
 {
     int i,j;
 
-    int* ri;
-    int* rj;
+    int ri[3];
+    int rj[3];
 
     double separation;
     int bin_ij;
@@ -59,14 +59,12 @@ void Gofr::rdf(int* n, double* gofr)
         n_ideal[i]  = 0.0;
     }
 
-    sites = (int*) calloc (nL, sizeof(int));
-
     int nsites;
 
     j = 0;
     for (i=0; i<nL; i++)
     {
-        if (n[i]==0)
+        if (n[i]==1)
         {
             sites[j] = i;
             j++;
@@ -86,13 +84,13 @@ void Gofr::rdf(int* n, double* gofr)
     {
         ii = sites[i];
 
-        ri = lattice.unpack_position(ii);
+        lattice.unpack_position(ii, ri);
 
-        for (j=(i+1); j<(int)(nsites - 1); j++)
+        for (j=(i+1); j<nsites; j++)
         {
             jj = sites[j];
 
-            rj = lattice.unpack_position(jj);
+            lattice.unpack_position(jj, rj);
 
             separation = lattice.separation(ri, rj);
 
@@ -114,10 +112,8 @@ void Gofr::rdf(int* n, double* gofr)
         bin_vols[i] = (4*PI/3) * ( pow(r[i] + dr, 3) - pow(r[i], 3) );
         n_ideal[i]  = density * bin_vols[i];
         gofr[i]     = n_ave[i] / n_ideal[i];
-
     }
-    delete [] sites;
-}
+}    
 
 void Gofr::initarrays()
 {
@@ -126,6 +122,7 @@ void Gofr::initarrays()
     n_ave = (double*) calloc (rbins, sizeof(double));
     bin_vols = (double*) calloc (rbins, sizeof(double));
     n_ideal  = (double*) calloc (rbins, sizeof(double));
+    sites    = (int*) calloc (nL, sizeof(int));
 
     mem_test = true;
 }
@@ -139,5 +136,6 @@ Gofr::~Gofr()
     delete [] n_ave;
     delete [] bin_vols;
     delete [] n_ideal;
+    delete [] sites;
     }
 }

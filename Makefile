@@ -4,11 +4,11 @@ SHELL = /bin/sh
 # make all
 # make criticality_stats
 
-OBJS = SimSpace.o Gofr.o pca.o blocking.o
+OBJS = main.o SimSpace.o Gofr.o pca.o blocking.o
 CFLAGS =
 CC = clang++
-INCLUDES = 
-LIBS = omp
+INCLUDES = -I/usr/local/include
+LIBS = -L/usr/local/lib -lgsl
 
 all:criticality_stats
 

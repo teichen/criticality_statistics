@@ -139,6 +139,8 @@ pca::pca()
     // V = transpose(n) * U * S
     // transpose(V) = S * transpose(U) * n
 
+    double vt;
+
     filenameStream << "./pccomps.dat";
     filename = filenameStream.str();
     edump.open(filename.c_str(), std::ios_base::app);
