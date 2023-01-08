@@ -36,13 +36,16 @@ blocking::blocking()
     nL  = pow(L,dim);
 }
 
-blocking::blocking(int b)
+
+blocking::blocking(int b_blocking)
 {
+    b = b_blocking;
+
     coarse_lattice.set_dimensions(b);
     Lb = coarse_lattice.L;
 
-    //lattice_map(L, b, bshift);
-    //lattice_map.U_L_Lb; // the coarse cell that each original lattice site belongs to
+    int ub[nL];
+    lattice_map(bshift, ub); // the coarse cell that each original lattice site belongs to
 
     int n_configs;
     n_configs = 20;
@@ -1058,6 +1061,36 @@ int blocking::get_cell(int i, int j, int k, int dir_i, int dir_j, int dir_k, int
     return cell;
 }
 
+void blocking::lattice_map(int bshift, int* ub)
+{
+    int ri[3];
+
+    int i, j;
+    for (i=0; i<(int)(pow(L,dim)); i++)
+    {
+        lattice.unpack_position(i, ri);
+
+        // randomized sampling, shift the coarse grid boundaries (isotropic)
+        ri[0] += bshift;
+        ri[1] += bshift;
+        ri[2] += bshift;
+
+        // periodic boundary conditions
+        for (j=0; j<dim; j++)
+        {
+            if (ri[j] >= L)
+            {
+                ri[j] -= L;
+            }
+        }
+
+        ri[2] /= b;
+        ri[1] /= b;
+        ri[0] /= b;
+
+        ub[i] = (int)(ri[0] * pow(Lb, 2) + ri[1] * Lb + ri[2]);
+    }
+}
 
 blocking::~blocking()
 {

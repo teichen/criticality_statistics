@@ -25,11 +25,14 @@ public:
 
     int nL;
 
+    int b;
     int bshift;
 
     int nsites;
 
     int get_cell(int,int,int,int,int,int,int);
+
+    void lattice_map(int, int*);
 
     ~blocking(); 
 
