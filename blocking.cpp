@@ -94,14 +94,13 @@ blocking::blocking(int b_blocking)
 
     int celli,cellj,cellk,celll;
 
-    double nn;
+    double n_tmp;
+
+    int nn[3];
+    int nn_vals[3];
+    int ri[3];
 
     double nn_i,nn_j,nn_k,nn_l;
-
-    for (i=0; i<(int)(pow(Lb,dim)); i++)
-    {
-        nb[i] = 0.0;
-    }
 
     int config;
 
@@ -144,122 +143,28 @@ blocking::blocking(int b_blocking)
 
         n_1 = 0.0; n0 = 0.0; n1 = 0.0; n2 = 0.0; n3 = 0.0; n4 = 0.0; n5 = 0.0; n6 = 0.0;
 
-        nn = 0.0;
+        n_tmp = 0.0;
 
-        nn_i = 0.0; nn_j = 0.0; nn_k = 0.0; nn_l = 0.0;
+        n_i = 0.0; n_j = 0.0; n_k = 0.0; n_l = 0.0;
 
-        celli = 0; cellj = 0; cellk = 0; celll = 0;
-
-    #pragma omp parallel for shared (n,nb) private (i,j,k,celli,nn,ib,jb,kb)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (n,nb,ub) private (i,n_tmp)
+        for (i=0; i<(int)(pow(L,dim)); i++)
         {
-            for (j=0; j<Lb; j++)
-            {
-                for (k=0; k<Lb; k++)
-                {
-                    // calculate average n for this cell block
-
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
-
+        #pragma omp atomic read
+            n_tmp = n[i];
         #pragma omp atomic write
-                    nb[celli] = 0.0;
-
-                    nn = 0.0;
-
-                    for (ib=bshift; ib<(bshift+b); ib++)
-                    {
-                        for (jb=bshift; jb<(bshift+b); jb++)
-                        {
-                            for (kb=bshift; kb<(bshift+b); kb++)
-                            {
-                                if ((i*b+ib)>(L-1))
-                                {
-                                    if ((j*b+jb)>(L-1))
-                                    {
-                                        if ((k*b+kb)>(L-1))
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib-L)*pow(L,2)+(j*b+jb-L)*L+k*b+kb-L)];
-                                        }
-                                        else
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib-L)*pow(L,2)+(j*b+jb-L)*L+k*b+kb)];
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if ((k*b+kb)>(L-1))
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib-L)*pow(L,2)+(j*b+jb)*L+k*b+kb-L)];
-                                        }
-                                        else
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib-L)*pow(L,2)+(j*b+jb)*L+k*b+kb)];
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    if ((j*b+jb)>(L-1))
-                                    {
-                                        if ((k*b+kb)>(L-1))
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib)*pow(L,2)+(j*b+jb-L)*L+k*b+kb-L)];
-                                        }
-                                        else
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib)*pow(L,2)+(j*b+jb-L)*L+k*b+kb)];
-
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if ((k*b+kb)>(L-1))
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib)*pow(L,2)+(j*b+jb)*L+k*b+kb-L)];
-                                        }
-                                        else
-                                        {
-        #pragma omp atomic read
-                                            nn = n[(int)((i*b+ib)*pow(L,2)+(j*b+jb)*L+k*b+kb)];
-                                        }
-                                    }
-                                }
-
-        #pragma omp atomic write
-                                nb[celli] = nb[celli] + nn;
-
-                            }
-                        }
-                    }
-                }
-            }
+            nb[ub[i]] += n_tmp;
         }
 
-    #pragma omp parallel for shared (n,nb) private (i,j,k,celli,nn) reduction(+:n_1)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (nb) private (i,n_tmp) reduction(+:n_1)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            for (j=0; j<Lb; j++)
-            {
-                for (k=0; k<Lb; k++)
-                {
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
-
         #pragma omp atomic read
-                    nn = nb[celli];
-
+            n_tmp = nb[i];
         #pragma omp atomic write
-                    nb[celli] = nn/(double)(pow(b,dim));
+            nb[i] = n_tmp / (double)(pow(b,dim));
 
-                    n_1 += nn/(double)(pow(b,dim));
-                }
-            }
+            n_1 += nn/(double)(pow(b,dim));
         }
 
         ndump.open("nb.dat", std::ios_base::app);
@@ -270,40 +175,24 @@ blocking::blocking(int b_blocking)
         }
         ndump.close();
 
-    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n0)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n0)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            for (j=0; j<Lb; j++)
+            // sum_NN\, n_i * n_i+1 (i=x,y,z)
+            lattice.unpack_position(i, ri);
+            //lattice.nearest_neighbors(ri, nn);
+        
+            // TODO: check the validity of the read via SimSpace.cpp
+        #pragma omp atomic read
+            lattice.nearest_neighbor_values(nb, ri, nn_vals);
+
+        #pragma omp atomic read
+            n_i = nb[i];
+            for (j=0; j<3; j++)
             {
-                for (k=0; k<Lb; k++)
-                {
-                    // sum_NN\, n_i * n_i+1 (i=x,y,z)
+                n_j = nn_vals[j];
 
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
-        #pragma omp atomic read
-                    nn_i = nb[celli];
-
-                    cellj = get_cell(i,j,k,1,0,0,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n0 += nn_i*nn_j;
-
-                    cellj = get_cell(i,j,k,0,1,0,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n0 += nn_i*nn_j;
-
-                    cellj = get_cell(i,j,k,0,0,1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n0 += nn_i*nn_j;
-                }
+                n0 += n_i * n_j;
             }
         }
 

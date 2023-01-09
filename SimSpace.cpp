@@ -103,6 +103,24 @@ void SimSpace::nearest_neighbor_values(int* n, int* nn, int nn_vals[3])
     nn_vals[2] = n[nn[2]];
 }
 
+    // sum_{diagonal in plane}\, n_i * n_j
+    // e.g. n_(0,0,0) * n_(1,1,0)
+
+    // sum_{cubic diagonal}\, n_i * n_j
+    // e.g. n_(0,0,0) * n_(1,1,1)
+
+
+    // sum_{principal planes}\, n_i * n_j * n_k * n_l
+    // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
+
+    // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
+    // e.g. n_(0,0,0) * n_(1,0,0) * n_(0,1,1) * n_(1,1,1)
+
+    // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
+    // e.g. n_(0,0,0) * n_(1,0,1) * n_(0,1,1) * n_(1,1,0)
+
+    // sum_NNN\, n_i * n_i+2 (i=x,y,z)
+
 SimSpace::~SimSpace()
 {
 }
