@@ -70,29 +70,18 @@ int SimSpace::flatten_position(int i, int j, int k)
 
 void SimSpace::nearest_neighbors(int* r, int nn[3])
 {
-    if (r[0] == (L-1))
+    int i;
+    for (i=0; i<dim; i++)
     {
-        nn[0] =(int)(0*pow(L,2) + r[1]*L + r[2]);
-    }
-    else
-    {
-        nn[0] = (int)((r[0] + 1)*pow(L,2) + r[1]*L + r[2]);
-    }
-    if (r[1] == (L-1))
-    {
-        nn[1] = (int)(r[0]*pow(L,2) + 0*L + r[2]);
-    }
-    else
-    {
-        nn[1] = (int)(r[0]*pow(L,2) + (r[1] + 1)*L + r[2]);
-    }
-    if (r[2] == (L-1))
-    {
-        nn[2] = (int)(r[0]*pow(L,2) + r[1]*L + 0);
-    }
-    else
-    {
-        nn[2] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]+1);
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+        if (r[i] == (L-1))
+        {
+            nn[i] += (int)((1-L) * pow(L, 2-i));
+        }
+        else
+        {
+            nn[i] += (int)(1 * pow(L, 2-i));
+        }
     }
 }
 
@@ -103,23 +92,145 @@ void SimSpace::nearest_neighbor_values(int* n, int* nn, int nn_vals[3])
     nn_vals[2] = n[nn[2]];
 }
 
+void SimSpace::diagonal_in_plane(int* r, int nn[6])
+{
     // sum_{diagonal in plane}\, n_i * n_j
-    // e.g. n_(0,0,0) * n_(1,1,0)
+    // directions: n_(1,1,0), n_(1,-1,0),
+    //             n_(1,0,1), n_(1,0,-1),
+    //             n_(0,1,1), n_(0,1,-1)
+    // return n_j only
 
+    int i, j;
+    for (i=0; i<6; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+    }
+    for (i=0; i<2; i++)
+    {
+        for (j=(i+1); j<3; j++)
+        {
+            if (r[i] == (L-1))
+            {
+                nn[i] += (int)((1-L) * pow(L, 2-i));
+            }
+            else
+            {
+                nn[i] += (int)(1 * pow(L, 2-i));
+            }
+            if (r[j] == 0)
+            {
+                nn[j] += (int)((L-1) * pow(L, 2-j));
+            }
+            else
+            {
+                nn[j] += (int)(-1 * pow(L, 2-j));
+            }
+        }
+    }
+}
+
+void SimSpace::cubic_diagonal(int* r, int nn[4])
+{
     // sum_{cubic diagonal}\, n_i * n_j
-    // e.g. n_(0,0,0) * n_(1,1,1)
+    // directions: n_(1,1,1), n_(1,1,-1),
+    //             n_(1,-1,-1), n_(1,-1,1)
+    // return n_j only
 
+    int i, j, k;
+    for (i=0; i<4; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+        if (r[0] == (L-1))
+        {
+            nn[i] += (int)((1-L) * pow(L, 2));
+        }
+        else
+        {
+            nn[i] += (int)(1 * pow(L, 2));
+        }
+    }
 
+    k = 0;
+    for (i=-1; i<=1; i=i+2)
+    {
+        for (j=-1; j<=1; j=j+2)
+        {
+            if ((i>0) && (r[i] == (L-1))) || ((i<0) && (r[i] == 0))
+            {
+                nn[k] += (int)(i*(1-L) * L);
+            }
+            else
+            {
+                nn[k] += (int)(i * L);
+            }
+            if ((j>0) && (r[j] == (L-1))) || ((j<0) && (r[j] == 0))
+            {
+                nn[k] += (int)(j*(1-L));
+            }
+            else
+            {
+                nn[k] += (int)(j);
+            }
+            k++;
+        }
+    }
+}
+
+void SimSpace::principal_planes(int* r, int nn[9])
+{
     // sum_{principal planes}\, n_i * n_j * n_k * n_l
     // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
+n_(1,0,0)
+n_(0,1,0)
+n_(1,1,0)
+n_(1,0,0)
+n_(0,0,1)
+n_(1,0,1)
+n_(0,1,0)
+n_(0,0,1)
+n_(0,1,1)
+}
 
+void SimSpace::diagonal_planes(int* r, int nn[18])
+{
     // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
     // e.g. n_(0,0,0) * n_(1,0,0) * n_(0,1,1) * n_(1,1,1)
+n_(1,0,0)
+n_(0,1,1)
+n_(1,1,1)
+n_(1,0,0)
+n_(0,1,-1)
+n_(1,1,-1)
+n_(0,1,0)
+n_(1,0,1)
+n_(1,1,1)
+n_(0,1,0)
+n_(1,0,-1)
+n_(1,1,-1)
+n_(0,0,1)
+n_(1,1,0)
+n_(1,1,1)
+n_(0,0,1)
+n_(1,-1,0)
+n_(1,-1,1)
+}
 
+void SimSpace::tetrahedral_vertices(int* r, int nn[6])
+{
     // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
     // e.g. n_(0,0,0) * n_(1,0,1) * n_(0,1,1) * n_(1,1,0)
+n_(1,0,1)
+n_(0,1,1)
+n_(1,1,0)
+n_(1,0,1)
+n_(0,-1,1)
+n_(1,-1,0)
+}
 
+void SimSpace::next_nearest_neighbors(int* r, int nn[6])
+{
     // sum_NNN\, n_i * n_i+2 (i=x,y,z)
+}
 
 SimSpace::~SimSpace()
 {
