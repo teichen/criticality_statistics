@@ -96,8 +96,8 @@ blocking::blocking(int b_blocking)
 
     double n_tmp;
 
-    int nn[3];
-    int nn_vals[3];
+    int nn[18];
+    int nn_vals[18];
     int ri[3];
 
     double nn_i,nn_j,nn_k,nn_l;
@@ -180,11 +180,13 @@ blocking::blocking(int b_blocking)
         {
             // sum_NN\, n_i * n_i+1 (i=x,y,z)
             lattice.unpack_position(i, ri);
-            //lattice.nearest_neighbors(ri, nn);
+            lattice.nearest_neighbors(ri, nn);
         
-            // TODO: check the validity of the read via SimSpace.cpp
+            for (j=0; j<3; j++)
+            {
         #pragma omp atomic read
-            lattice.nearest_neighbor_values(nb, ri, nn_vals);
+                nn_vals[j] = nb[nn[j]];
+            }
 
         #pragma omp atomic read
             n_i = nb[i];
@@ -196,113 +198,58 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n1)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n1)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            for (j=0; j<Lb; j++)
+            // sum_{diagonal in plane}\, n_i * n_j
+
+            lattice.unpack_position(i, ri);
+            lattice.diagonal_in_plane(ri, nn);
+        
+            for (j=0; j<6; j++)
             {
-                for (k=0; k<Lb; k++)
-                {
-                    // sum_{diagonal in plane}\, n_i * n_j
-                    // e.g. n_(0,0,0) * n_(1,1,0)
-
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = nb[celli];
-
-                    cellj = get_cell(i,j,k,1,1,0,b);
+                nn_vals[j] = nb[nn[j]];
+            }
 
         #pragma omp atomic read
-                    nn_j = nb[cellj];
+            n_i = nb[i];
+            for (j=0; j<6; j++)
+            {
+                n_j = nn_vals[j];
 
-                    n1 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,-1,0,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n1 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,0,1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n1 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,0,-1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n1 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,0,1,1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n1 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,0,1,-1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n1 += nn_i*nn_j; 
-                }
+                n1 += n_i * n_j;
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n2)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n2)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-            for (j=0; j<Lb; j++)
+            // sum_{cubic diagonal}\, n_i * n_j
+            lattice.unpack_position(i, ri);
+            lattice.cubic_diagonal(ri, nn);
+        
+            for (j=0; j<4; j++)
             {
-                for (k=0; k<Lb; k++)
-                {
-                    // sum_{cubic diagonal}\, n_i * n_j
-                    // e.g. n_(0,0,0) * n_(1,1,1)
-
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = nb[celli];
-
-                    cellj = get_cell(i,j,k,1,1,1,b);
+                nn_vals[j] = nb[nn[j]];
+            }
 
         #pragma omp atomic read
-                    nn_j = nb[cellj];
+            n_i = nb[i];
+            for (j=0; j<4; j++)
+            {
+                n_j = nn_vals[j];
 
-                    n2 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,1,-1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n2 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,-1,-1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n2 += nn_i*nn_j; 
-
-                    cellj = get_cell(i,j,k,1,-1,1,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n2 += nn_i*nn_j; 
-                }
+                n2 += n_i * n_j;
             }
         }
 
     #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
-        for (i=0; i<Lb; i++)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
+    void principal_planes(int*, int[9]);
+
             for (j=0; j<Lb; j++)
             {
                 for (k=0; k<Lb; k++)
@@ -371,6 +318,8 @@ blocking::blocking(int b_blocking)
     #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n4)
         for (i=0; i<Lb; i++)
         {
+    void diagonal_planes(int*, int[18]);
+
             for (j=0; j<Lb; j++)
             {
                 for (k=0; k<Lb; k++)
@@ -490,6 +439,8 @@ blocking::blocking(int b_blocking)
     #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n5)
         for (i=0; i<Lb; i++)
         {
+    void tetrahedral_vertices(int*, int[6]);
+
             for (j=0; j<Lb; j++)
             {
                 for (k=0; k<Lb; k++)
@@ -541,6 +492,9 @@ blocking::blocking(int b_blocking)
     #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n6)
         for (i=0; i<Lb; i++)
         {
+    void next_nearest_neighbors(int*, int[6]);
+
+
             for (j=0; j<Lb; j++)
             {
                 for (k=0; k<Lb; k++)

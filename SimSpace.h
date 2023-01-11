@@ -27,7 +27,12 @@ public:
     int flatten_position(int, int, int);
 
     void nearest_neighbors(int*, int[3]);
-    void nearest_neighbor_values(int*, int*, int[3]);
+    void diagonal_in_plane(int*, int[6]);
+    void cubic_diagonal(int*, int[4]);
+    void principal_planes(int*, int[9]);
+    void diagonal_planes(int*, int[18]);
+    void tetrahedral_vertices(int*, int[6]);
+    void next_nearest_neighbors(int*, int[6]);
 
     ~SimSpace(); 
 

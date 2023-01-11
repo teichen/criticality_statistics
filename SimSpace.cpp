@@ -85,13 +85,6 @@ void SimSpace::nearest_neighbors(int* r, int nn[3])
     }
 }
 
-void SimSpace::nearest_neighbor_values(int* n, int* nn, int nn_vals[3])
-{
-    nn_vals[0] = n[nn[0]];
-    nn_vals[1] = n[nn[1]];
-    nn_vals[2] = n[nn[2]];
-}
-
 void SimSpace::diagonal_in_plane(int* r, int nn[6])
 {
     // sum_{diagonal in plane}\, n_i * n_j
