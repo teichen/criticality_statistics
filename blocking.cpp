@@ -245,73 +245,29 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,cellk,celll,nn,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
         for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-    void principal_planes(int*, int[9]);
+            // sum_{principal planes}\, n_i * n_j * n_k * n_l
 
-            for (j=0; j<Lb; j++)
+            lattice.unpack_position(i, ri);
+            lattice.principal_planes(ri, nn);
+        
+            for (j=0; j<9; j++)
             {
-                for (k=0; k<Lb; k++)
-                {
-                    // sum_{principal planes}\, n_i * n_j * n_k * n_l
-                    // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
-
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = nb[celli];
-
-                    cellj = get_cell(i,j,k,1,0,0,b);
+                nn_vals[j] = nb[nn[j]];
+            }
 
         #pragma omp atomic read
-                    nn_j = nb[cellj];
+            n_i = nb[i];
+            for (j=0; j<3; j++) // three triplets
+            {
+                n_j = nn_vals[3*j+0];
+                n_k = nn_vals[3*j+1];
+                n_l = nn_vals[3*j+2];
 
-                    cellk = get_cell(i,j,k,0,1,0,b);
-
-        #pragma omp atomic read
-                    nn_k = nb[cellk];
-
-                    celll = get_cell(i,j,k,1,1,0,b);
-
-        #pragma omp atomic read
-                    nn_l = nb[celll];
-
-                    n3 += nn_i*nn_j*nn_k*nn_l; 
-
-                    cellj = get_cell(i,j,k,1,0,0,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    cellk = get_cell(i,j,k,0,0,1,b);
-
-        #pragma omp atomic read
-                    nn_k = nb[cellk];
-
-                    celll = get_cell(i,j,k,1,0,1,b);
-
-        #pragma omp atomic read
-                    nn_l = nb[celll];
-
-                    n3 += nn_i*nn_j*nn_k*nn_l; 
-
-                    cellj = get_cell(i,j,k,0,1,0,b);
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    cellk = get_cell(i,j,k,0,0,1,b);
-
-        #pragma omp atomic read
-                    nn_k = nb[cellk];
-
-                    celll = get_cell(i,j,k,0,1,1,b);
-
-        #pragma omp atomic read
-                    nn_l = nb[celll];
-
-                    n3 += nn_i*nn_j*nn_k*nn_l; 
-                }
+                n3 += n_i * n_j * n_k * n_l;
             }
         }
 

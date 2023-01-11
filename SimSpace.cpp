@@ -172,37 +172,72 @@ void SimSpace::cubic_diagonal(int* r, int nn[4])
 void SimSpace::principal_planes(int* r, int nn[9])
 {
     // sum_{principal planes}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
-n_(1,0,0)
-n_(0,1,0)
-n_(1,1,0)
-n_(1,0,0)
-n_(0,0,1)
-n_(1,0,1)
-n_(0,1,0)
-n_(0,0,1)
-n_(0,1,1)
+    int i, j, k, di, dj;
+    for (i=0; i<9; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+    }
+    for (i=0; i<2; i++)
+    {
+        for (j=(i+1); j<3; j++)
+        {
+            k = 0;
+            for (di=0; di<2; di++)
+            {
+                for (dj=0; dj<2; dj++)
+                {
+                    if (di>0)
+                    {
+                        if (r[i] == (L-1))
+                        {
+                            nn[k] += (int)((1-L) * pow(L, 2-i));
+                        }
+                        else
+                        {
+                            nn[k] += (int)(1 * pow(L, 2-i))
+                        }
+                    }
+                    if (dj>0)
+                    {
+                        if (r[j] == (L-1))
+                        {
+                            nn[k] = (int)((1-L) * pow(L, 2-j));
+                        }
+                        else
+                        {
+                            nn[k] += (int)(1 * pow(L, 2-j));
+                        }
+                    }
+                    k++;
+                }
+            }
+        }
+    }
 }
 
 void SimSpace::diagonal_planes(int* r, int nn[18])
 {
     // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(1,0,0) * n_(0,1,1) * n_(1,1,1)
 n_(1,0,0)
 n_(0,1,1)
 n_(1,1,1)
+
 n_(1,0,0)
 n_(0,1,-1)
 n_(1,1,-1)
+
 n_(0,1,0)
 n_(1,0,1)
 n_(1,1,1)
+
 n_(0,1,0)
 n_(1,0,-1)
 n_(1,1,-1)
+
 n_(0,0,1)
 n_(1,1,0)
 n_(1,1,1)
+
 n_(0,0,1)
 n_(1,-1,0)
 n_(1,-1,1)
@@ -211,10 +246,10 @@ n_(1,-1,1)
 void SimSpace::tetrahedral_vertices(int* r, int nn[6])
 {
     // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(1,0,1) * n_(0,1,1) * n_(1,1,0)
 n_(1,0,1)
 n_(0,1,1)
 n_(1,1,0)
+
 n_(1,0,1)
 n_(0,-1,1)
 n_(1,-1,0)
