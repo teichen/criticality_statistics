@@ -172,6 +172,11 @@ void SimSpace::cubic_diagonal(int* r, int nn[4])
 void SimSpace::principal_planes(int* r, int nn[9])
 {
     // sum_{principal planes}\, n_i * n_j * n_k * n_l
+    // directions: n_(1,0,0), n_(0,1,0),
+    //             n_(1,1,0), n_(1,0,0),
+    //             n_(0,0,1), n_(1,0,1),
+    //             n_(0,1,0), n_(0,0,1),
+    //             n_(0,1,1)
     int i, j, k, di, dj;
     for (i=0; i<9; i++)
     {
@@ -201,7 +206,7 @@ void SimSpace::principal_planes(int* r, int nn[9])
                     {
                         if (r[j] == (L-1))
                         {
-                            nn[k] = (int)((1-L) * pow(L, 2-j));
+                            nn[k] += (int)((1-L) * pow(L, 2-j));
                         }
                         else
                         {
@@ -218,29 +223,65 @@ void SimSpace::principal_planes(int* r, int nn[9])
 void SimSpace::diagonal_planes(int* r, int nn[18])
 {
     // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-n_(1,0,0)
-n_(0,1,1)
-n_(1,1,1)
-
-n_(1,0,0)
-n_(0,1,-1)
-n_(1,1,-1)
-
-n_(0,1,0)
-n_(1,0,1)
-n_(1,1,1)
-
-n_(0,1,0)
-n_(1,0,-1)
-n_(1,1,-1)
-
-n_(0,0,1)
-n_(1,1,0)
-n_(1,1,1)
-
-n_(0,0,1)
-n_(1,-1,0)
-n_(1,-1,1)
+    // directions: n_(1,0,0), n_(0,1,1), n_(1,1,1),
+    //             n_(1,0,0), n_(0,1,-1), n_(1,1,-1),
+    //             n_(0,1,0), n_(1,0,1), n_(1,1,1),
+    //             n_(0,1,0), n_(1,0,-1), n_(1,1,-1),
+    //             n_(0,0,1), n_(1,1,0), n_(1,1,1),
+    //             n_(0,0,1), n_(1,-1,0), n_(1,-1,1)
+    int i, j, k;
+    for (i=0; i<18; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+    }
+    // start with the first of each of six triplets
+    for (i=0; i<3; i++)
+    {
+        if (r[i] == (L-1))
+        {
+            nn[6*i]   += (int)((1-L) * pow(L, 2-i));
+            nn[6*i+3] += (int)((1-L) * pow(L, 2-i));
+        }
+        else
+        {
+            nn[6*i]   += (int)(1 * pow(L, 2-i));
+            nn[6*i+3] += (int)(1 * pow(L, 2-i));
+        }
+    }
+    // now for the second of each triplet
+    k = 3*4 + 1;
+    for (i=0; i<2; i++)
+    {
+        for (j=i+1; j<3; j++)
+        {
+            if (r[i] == (L-1))
+            {
+                nn[k]   += (int)((1-L) * pow(L, 2-i));
+                nn[k+3] += (int)((1-L) * pow(L, 2-i));
+            }
+            else
+            {
+                nn[k]   += (int)(1 * pow(L, 2-i));
+                nn[k+3] += (int)(1 * pow(L, 2-i));
+            }
+            if (r[j] == (L-1))
+            {
+                nn[k]   += (int)((1-L) * pow(L, 2-j));
+                nn[k+3] += (int)(-1 * pow(L, 2-j));
+            }
+            else if (r[j] == 0)
+            {
+                nn[k]   += (int)(1 * pow(L, 2-j));
+                nn[k+3] += (int)((L-1) * pow(L, 2-j));
+            }
+            else
+            {
+                nn[k]   += (int)(1 * pow(L, 2-j));
+                nn[k+3] += (int)(-1 * pow(L, 2-j));
+            }
+            k = k - 3*2;
+        }
+    }
 }
 
 void SimSpace::tetrahedral_vertices(int* r, int nn[6])

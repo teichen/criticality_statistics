@@ -30,8 +30,6 @@ public:
 
     int nsites;
 
-    int get_cell(int,int,int,int,int,int,int);
-
     void lattice_map(int, int*);
 
     ~blocking(); 
