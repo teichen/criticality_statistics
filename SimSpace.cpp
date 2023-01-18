@@ -339,9 +339,22 @@ void SimSpace::tetrahedral_vertices(int* r, int nn[6])
     }
 }
 
-void SimSpace::next_nearest_neighbors(int* r, int nn[6])
+void SimSpace::next_nearest_neighbors(int* r, int nn[3])
 {
     // sum_NNN\, n_i * n_i+2 (i=x,y,z)
+    int i;
+    for (i=0; i<dim; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+        if (r[i] >= (L-2))
+        {
+            nn[i] += (int)((2-L) * pow(L, 2-i));
+        }
+        else
+        {
+            nn[i] += (int)(2 * pow(L, 2-i));
+        }
+    }
 }
 
 SimSpace::~SimSpace()

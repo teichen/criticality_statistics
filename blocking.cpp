@@ -321,67 +321,25 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,k,celli,cellj,nn_i,nn_j) reduction(+:n6)
-        for (i=0; i<Lb; i++)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n6)
+        for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
-    void next_nearest_neighbors(int*, int[6]);
-
-
-            for (j=0; j<Lb; j++)
+            lattice.unpack_position(i, ri);
+            lattice.next_nearest_neighbors(ri, nn);
+        
+            for (j=0; j<3; j++)
             {
-                for (k=0; k<Lb; k++)
-                {
-                    // sum_NNN\, n_i * n_i+2 (i=x,y,z)
-
-                    celli = (int)(i*pow(Lb,2)+j*(Lb)+k);
         #pragma omp atomic read
-                    nn_i = nb[celli];
-
-                    //cellj = get_cell(i,j,k,2,0,0,b); 
-                    if (i==((Lb)-1))
-                    {
-                        cellj = get_cell(0,j,k,1,0,0,b);
-                    }
-                    else
-                    {
-                        cellj = get_cell(i+1,j,k,1,0,0,b);
-                    }
+                nn_vals[j] = nb[nn[j]];
+            }
 
         #pragma omp atomic read
-                    nn_j = nb[cellj];
+            n_i = nb[i];
+            for (j=0; j<3; j++)
+            {
+                n_j = nn_vals[j];
 
-                    n6 += nn_i*nn_j; 
-
-                    //cellj = get_cell(i,j,k,0,2,0,b); 
-                    if (j==((Lb)-1))
-                    {
-                        cellj = get_cell(i,0,k,0,1,0,b);
-                    }
-                    else
-                    {
-                        cellj = get_cell(i,j+1,k,0,1,0,b);
-                    }
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n6 += nn_i*nn_j; 
-
-                    //cellj = get_cell(i,j,k,0,0,2,b); 
-                    if (k==((Lb)-1))
-                    {
-                        cellj = get_cell(i,j,0,0,0,1,b);
-                    }
-                    else
-                    {
-                        cellj = get_cell(i,j,k+1,0,0,1,b);
-                    }
-
-        #pragma omp atomic read
-                    nn_j = nb[cellj];
-
-                    n6 += nn_i*nn_j; 
-                }
+                n6 += n_i * n_j;
             }
         }
 

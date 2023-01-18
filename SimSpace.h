@@ -32,7 +32,7 @@ public:
     void principal_planes(int*, int[9]);
     void diagonal_planes(int*, int[18]);
     void tetrahedral_vertices(int*, int[6]);
-    void next_nearest_neighbors(int*, int[6]);
+    void next_nearest_neighbors(int*, int[3]);
 
     ~SimSpace(); 
 
