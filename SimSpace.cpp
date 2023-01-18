@@ -287,13 +287,56 @@ void SimSpace::diagonal_planes(int* r, int nn[18])
 void SimSpace::tetrahedral_vertices(int* r, int nn[6])
 {
     // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-n_(1,0,1)
-n_(0,1,1)
-n_(1,1,0)
-
-n_(1,0,1)
-n_(0,-1,1)
-n_(1,-1,0)
+    // directions: n_(1,0,1), n_(1,1,0), n_(0,1,1),
+    //             n_(1,0,1), n_(1,-1,0), n_(0,-1,1)
+    int i, j, k;
+    for (i=0; i<6; i++)
+    {
+        nn[i] = (int)(r[0]*pow(L,2) + r[1]*L + r[2]);
+    }
+    for (k=0; k<2; k++)
+    {
+        if (r[0] == (L-1))
+        {
+            nn[3*k+0] += (int)((1-L) * pow(L, 2));
+            nn[3*k+1] += (int)((1-L) * pow(L, 2));
+        }
+        else
+        {
+            nn[3*k+0] += (int)(1 * pow(L, 2));
+            nn[3*k+1] += (int)(1 * pow(L, 2));
+        }
+        if (r[2] == (L-1))
+        {
+            nn[3*k+0] += (int)(1-L);
+            nn[3*k+2] += (int)(1-L);
+        }
+        else
+        {
+            nn[3*k+0] += 1;
+            nn[3*k+2] += 1;
+        }
+    }
+    if (r[1] == (L-1))
+    {
+        nn[1] += (int)((1-L) * L);
+        nn[2] += (int)((1-L) * L);
+    }
+    else
+    {
+        nn[1] += 1;
+        nn[2] += 1;
+    }
+    if (r[1] == 0)
+    {
+        nn[1+3] += (int)((L-1) * L);
+        nn[2+3] += (int)((L-1) * L);
+    }
+    else
+    {
+        nn[1+3] += -1;
+        nn[2+3] += -1;
+    }
 }
 
 void SimSpace::next_nearest_neighbors(int* r, int nn[6])
