@@ -148,7 +148,7 @@ void SimSpace::cubic_diagonal(int* r, int nn[4])
     {
         for (j=-1; j<=1; j=j+2)
         {
-            if ((i>0) && (r[i] == (L-1))) || ((i<0) && (r[i] == 0))
+            if (((i>0) && (r[i] == (L-1))) || ((i<0) && (r[i] == 0)))
             {
                 nn[k] += (int)(i*(1-L) * L);
             }
@@ -156,7 +156,7 @@ void SimSpace::cubic_diagonal(int* r, int nn[4])
             {
                 nn[k] += (int)(i * L);
             }
-            if ((j>0) && (r[j] == (L-1))) || ((j<0) && (r[j] == 0))
+            if (((j>0) && (r[j] == (L-1))) || ((j<0) && (r[j] == 0)))
             {
                 nn[k] += (int)(j*(1-L));
             }
@@ -199,7 +199,7 @@ void SimSpace::principal_planes(int* r, int nn[9])
                         }
                         else
                         {
-                            nn[k] += (int)(1 * pow(L, 2-i))
+                            nn[k] += (int)(1 * pow(L, 2-i));
                         }
                     }
                     if (dj>0)

@@ -100,7 +100,7 @@ blocking::blocking(int b_blocking)
     int nn_vals[18];
     int ri[3];
 
-    double nn_i,nn_j,nn_k,nn_l;
+    double n_i,n_j,n_k,n_l;
 
     int config;
 
@@ -164,7 +164,7 @@ blocking::blocking(int b_blocking)
         #pragma omp atomic write
             nb[i] = n_tmp / (double)(pow(b,dim));
 
-            n_1 += nn/(double)(pow(b,dim));
+            n_1 += n_tmp / (double)(pow(b,dim));
         }
 
         ndump.open("nb.dat", std::ios_base::app);
@@ -245,7 +245,7 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,nn_i,nn_j,nn_k,nn_l) reduction(+:n3)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n3)
         for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
             // sum_{principal planes}\, n_i * n_j * n_k * n_l
@@ -271,7 +271,7 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,nn_i,nn_j,nn_k,nn_l) reduction(+:n4)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n4)
         for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
             // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
@@ -296,7 +296,7 @@ blocking::blocking(int b_blocking)
             }
         }
 
-    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,nn_i,nn_j,nn_k,nn_l) reduction(+:n5)
+    #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n5)
         for (i=0; i<(int)(pow(Lb,dim)); i++)
         {
             // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
