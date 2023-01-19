@@ -36,21 +36,20 @@ using namespace std;
 critexp::critexp()
 {
     int b;
-
     b = 4;
 
-    int jtypes,jnum;
+    int L[2];
+
+    L[0] = 8;
+    L[1] = 16;
+
+    n_configs = 10;
 
     jtypes = 5;
-    jnum = 8;
+    jnum   = 8;
 
-    double jvec[jtypes*jnum];
-
-    std::ostringstream filenameStream;
-    std:string filename;
-
-    ifstream fin;
-    string line;
+    mem_test = false;
+    initarrays();
 
     std::ofstream tdump;
     std::ofstream edump;
@@ -58,152 +57,25 @@ critexp::critexp()
     int i,j,k;
     int ii,jj,kk;
 
-    int L[2];
-
-    L[0] = 8;
-    L[1] = 16;
-
-    int n_configs;
-    n_configs = 10;
-
-    // n_configs sampled at equilibrium
-    double na[n_configs*jnum];
-    double nb[n_configs*jnum];
-
-    // initialize jnum*2 matrices for nave averages
-    double nave[jnum*2];
-
-    // initialize jnum*jnum matrices for nk,nj correlation functions
-    double n_n[jnum*jnum];
-
-    double a[jnum*jtypes*jnum*jtypes];
-    double across[jnum*jtypes*jnum*jtypes];
-
-    double t[jnum*jtypes*jnum*jtypes];
-
-    double across_i[jnum*jtypes];
-    int s;
-
     // read in data
-
-    for (i=0; i<(jtypes*jnum); i++)
-    {
-        jvec[i] = 0.0;
-    }
 
     jind = 0;
 
-    for (i=1; i<=n_configs; i++)
-    {
-        for (j=0; j<jnum; j++)
-        {
-            na[(i-1)*jnum+j] = 0.0;
-        }
-        for (j=0; j<jnum; j++)
-        {
-            nb[(i-1)*jnum+j] = 0.0;
-        }
-
-        filenameStream << "./L" << L[1] << "/" << i << "/nvec_b" << b/2 << ".dat";
-        filename = filenameStream.str();
-
-        fin.open(filename.c_str());
-
-        j = (i-1)*jnum;
-        while( getline(fin,line) )
-        {
-            nb[j] = atof (line.c_str());
-
-            j++;
-        }
-
-        fin.close();
-        filenameStream.str("");
-
-        filenameStream << "./L" << L[1] << "/" << i << "/nvec_b" << b << ".dat";
-        filename = filenameStream.str();
-
-        fin.open(filename.c_str());
-
-        j = (i-1)*jnum;
-        while( getline(fin,line) )
-        {
-            na[j] = atof (line.c_str());
-
-            j++;
-        }
-
-        fin.close();
-        filenameStream.str("");
-    }
+    read_set_field(nb, b/2);
+    read_set_field(na, b);
 
     // calculate averages
-    for (i=0; i<jnum; i++)
-    {
-        nave[i*2+0] = 0.0;
-        nave[i*2+1] = 0.0;
-
-        for (j=0; j<(n_configs*npts[1]); j++)
-        {
-            nave[i*2+0] = nave[i*2+0] + na[j*jnum+i];
-        }
-        for (j=0; j<(n_configs*npts[1]); j++)
-        {
-            nave[i*2+1] = nave[i*2+1] + nb[j*jnum+i];
-        }
-
-        nave[i*2+0] = nave[i*2+0] / (double)(n_configs*npts[1]);
-        nave[i*2+1] = nave[i*2+1] / (double)(n_configs*npts[1]);
-    }
+    double na_ave[jnum];
+    double nb_ave[jnum];
+    calc_averages(na, na_ave);
+    calc_averages(nb, nb_ave);
 
     // calculate correlation functions
-    for (i=0; i<jnum; i++)
-    {
-        for (j=0; j<jnum; j++)
-        {
-            n_n[i*jnum+j] = 0.0;
+    double a[jnum*jtypes*jnum*jtypes];
+    double a_cross[jnum*jtypes*jnum*jtypes];
 
-            for (k=0; k<n_configs; k++)
-            {
-                n_n[i*jnum+j] = n_n[i*jnum+j] + na[k*jnum+i]*na[k*jnum+j];
-            }
-            n_n[i*jnum+j] = n_n[i*jnum+j] / (double)(n_configs);
-
-            n_n[i*jnum+j] = n_n[i*jnum+j] - nave[i*2+1]*nave[j*2+1];
-        }
-    }
-
-    for (i=0; i<jnum; i++)
-    {
-        for (j=0; j<jnum; j++)
-        {
-            a[i*jnum*jtypes+j] = n_n[i*jnum+j];
-        }
-    }
-
-    for (i=0; i<jnum; i++)
-    {
-        for (j=0; j<jnum; j++)
-        {
-            n_n[i*jnum+j] = 0.0;
-
-            for (k=0; k<n_configs; k++)
-            {
-                n_n[i*jnum+j] = n_n[i*jnum+j] + na[k*jnum+i]*nb[k*jnum+j];
-            }
-            n_n[i*jnum+j] = n_n[i*jnum+j]/(double)(n_configs);
-
-            n_n[i*jnum+j] = n_n[i*jnum+j] - nave[i*2+1]*nave[j*2+0];
-        }
-    }
-
-    for (i=0; i<jnum; i++)
-    {
-        for (j=0; j<jnum; j++)
-        {
-            across[i*jnum*jtypes+j] = n_n[i*jnum+j];
-        }
-    }
+    calc_correlations(na, na, na_ave, na_ave, a);
+    calc_correlations(na, nb, na_ave, nb_ave, a_cross);
 
     filenameStream << "./a.dat";
     filename = filenameStream.str();
@@ -395,20 +267,98 @@ critexp::critexp()
         gsl_vector_complex_free (eval);
         gsl_matrix_complex_free (evec);
     }
+}
 
-    filenameStream << "./jflow.dat";
-    filename = filenameStream.str();
-    edump.open(filename.c_str(), std::ios_base::app);
+void critexp::read_set_field(int* n, int b)
+{    
+    std::ostringstream filenameStream;
+    std:string filename;
 
-    for (i=0; i<(jtypes*jnum); i++)
+    ifstream fin;
+    string line;
+
+    for (i=1; i<=n_configs; i++)
     {
-        edump << jvec[i] << "\n";
-    }
+        for (j=0; j<jnum; j++)
+        {
+            n[(i-1)*jnum+j] = 0.0;
+        }
 
-    edump.close();
-    filenameStream.str("");
+        filenameStream << "./L" << L[1] << "/" << i << "/nvec_b" << b << ".dat";
+        filename = filenameStream.str();
+
+        fin.open(filename.c_str());
+
+        j = (i-1)*jnum;
+        while( getline(fin,line) )
+        {
+            n[j] = atof (line.c_str());
+
+            j++;
+        }
+
+        fin.close();
+        filenameStream.str("");
+    }
+}
+
+void critexp::calc_averages(double* n, double* n_ave)
+{
+    int i,j;
+    for (i=0; i<jnum; i++)
+    {
+        nave[i] = 0.0;
+
+        for (j=0; j<n_configs; j++)
+        {
+            nave[i] = nave[i] + na[j*jnum+i];
+        }
+
+        nave[i] = nave[i] / (double)(n_configs);
+    }
+}
+
+void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* n2_ave, double* c12)
+{
+    int i,j,k;
+
+    for (i=0; i<jnum; i++)
+    {
+        for (j=0; j<jnum; j++)
+        {
+            c12[i*jnum+j] = 0.0;
+
+            for (k=0; k<n_configs; k++)
+            {
+                c12[i*jnum+j] = c12[i*jnum+j] + na[k*jnum+i]*na[k*jnum+j];
+            }
+            c12[i*jnum+j] = c12[i*jnum+j] / (double)(n_configs);
+
+            c12[i*jnum+j] = c12[i*jnum+j] - n1_ave[i]*n2_ave[j];
+        }
+    }
+}
+
+void critexp::initarrays()
+{
+    na       = (double*) calloc (n_configs * jnum, sizeof(double));
+    nb       = (double*) calloc (n_configs * jnum, sizeof(double));
+    t        = (double*) calloc (jnum*jtypes*jnum*jtypes, sizeof(double));
+    across_i = (double*) calloc (jnum * jtypes, sizeof(double));
+
+    mem_test = true;
 }
 
 critexp::~critexp()
 {
+    if(mem_test==true)
+    {
+    delete [] na;
+    delete [] nb;
+    delete [] t;
+    delete [] across_i;
+
+    cout << "Deallocate critexp memory" << endl;
+
+    }
 }
