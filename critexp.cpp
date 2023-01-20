@@ -77,35 +77,8 @@ critexp::critexp()
     calc_correlations(na, na, na_ave, na_ave, a);
     calc_correlations(na, nb, na_ave, nb_ave, a_cross);
 
-    filenameStream << "./a.dat";
-    filename = filenameStream.str();
-    edump.open(filename.c_str(), std::ios_base::app);
-
-    for (j=0; j<(jnum*jtypes); j++)
-    {
-        for (k=0; k<(jnum*jtypes); k++)
-        {
-            edump << a[j*jnum*jtypes+k] << "\n";
-        }
-    }
-
-    edump.close();
-    filenameStream.str("");
-
-    filenameStream << "./across.dat";
-    filename = filenameStream.str();
-    edump.open(filename.c_str(), std::ios_base::app);
-
-    for (j=0; j<(jnum*jtypes); j++)
-    {
-        for (k=0; k<(jnum*jtypes); k++)
-        {
-            edump << across[j*jnum*jtypes+k] << "\n";
-        }
-    }
-
-    edump.close();
-    filenameStream.str("");
+    write_correlations(a, "./a.dat");
+    write_correlations(a_cross, "./across.dat");
 
     // calculate condition numbers
 
@@ -113,9 +86,11 @@ critexp::critexp()
     // Ax=B --> x = linsolve(A,B)
     // t = linsolve(a,across)
 
-    // double t[jnum*jtypes*jnum*jtypes];
-
-    gsl_matrix_view a_gsl = gsl_matrix_view_array (a, jnum*jtypes, jnum*jtypes);
+    double t[jnum * jtypes * jnum * jtypes];
+    double t_i[jnum * jtypes];
+    double across_i[jnum * jtypes];
+ 
+    gsl_vector *t_i       = gsl_vector_alloc (jnum*jtypes);
 
     for (i=0; i<(jnum*jtypes); i++)
     {
@@ -124,30 +99,13 @@ critexp::critexp()
             across_i[j] = across[j*(jnum*jtypes)+i];
         }
 
-        gsl_vector_view across_gsl_i = gsl_vector_view_array (across_i, (jnum*jtypes));
+        stability_matrix(a, across_i, t_i);
 
-        gsl_vector *t_i = gsl_vector_alloc (jnum*jtypes);
-
-        gsl_permutation * p = gsl_permutation_alloc (jnum*jtypes);
-
-        gsl_linalg_LU_decomp (&a_gsl.matrix, p, &s);
-        gsl_linalg_LU_solve (&a_gsl.matrix, p, &across_gsl_i.vector, t_i);
-
-        filenameStream << "./t_stab.dat";
-        filename = filenameStream.str();
-        tdump.open(filename.c_str(), std::ios_base::app);
+        write_t_row(t_i, "./t_stab.dat");
 
         for (j=0; j<(jnum*jtypes); j++)
         {
-            tdump << gsl_vector_get (t_i, j) << "\n";
-        }
-
-        tdump.close();
-        filenameStream.str("");
-
-        for (j=0; j<(jnum*jtypes); j++)
-        {
-            t[j*(jnum*jtypes)+i] = gsl_vector_get (t_i, j);
+            t[j*(jnum*jtypes)+i] = t_i[j];
         }
 
         gsl_permutation_free (p);
@@ -159,114 +117,15 @@ critexp::critexp()
 
     // eigensystem:
 
-    gsl_matrix_view t_gsl = gsl_matrix_view_array (t, (jnum*jtypes), (jnum*jtypes));
+    gsl_vector_complex *eval;
+    gsl_matrix_complex *evec;
 
-    gsl_vector *s_svd = gsl_vector_alloc (jnum*jtypes);
-    gsl_matrix *v_svd = gsl_matrix_alloc (jnum*jtypes, jnum*jtypes);
-    gsl_vector *w_svd = gsl_vector_alloc (jnum*jtypes);
+    eigensystem(t, eval, evec);
 
-    //gsl_vector *eval = gsl_vector_alloc (jnum*jtypes);
-    //gsl_matrix *evec = gsl_matrix_alloc (jnum*jtypes, jnum*jtypes);
-    gsl_vector_complex *eval = gsl_vector_complex_alloc (jnum*jtypes);
-    gsl_matrix_complex *evec = gsl_matrix_complex_alloc (jnum*jtypes, jnum*jtypes);
+    write_exponents(eval, "./exponent.dat");
 
-    //gsl_eigen_symmv_workspace * w = gsl_eigen_symmv_alloc (jnum*jtypes);
-    gsl_eigen_nonsymmv_workspace * w = gsl_eigen_nonsymmv_alloc (jnum*jtypes);
-
-    //gsl_eigen_symmv (&t_gsl.matrix, eval, evec, w);
-    gsl_eigen_nonsymmv (&t_gsl.matrix, eval, evec, w);
-
-    gsl_linalg_SV_decomp (&t_gsl.matrix, v_svd, s_svd, w_svd);
-
-    //gsl_eigen_symmv_free (w);
-    gsl_eigen_nonsymmv_free (w);
-
-    //gsl_eigen_symmv_sort (eval, evec, GSL_EIGEN_SORT_ABS_ASC);
-    gsl_eigen_nonsymmv_sort (eval, evec, GSL_EIGEN_SORT_ABS_ASC);
-
-    for (i=0; i<(jnum*jtypes); i++)
-    {
-        //double eval_i = gsl_vector_get (eval, i);
-        //gsl_vector_view evec_i = gsl_matrix_column (evec, i);
-        gsl_complex eval_i = gsl_vector_complex_get (eval, i);
-        gsl_vector_complex_view evec_i = gsl_matrix_complex_column (evec, i);
-
-        filenameStream << "./eigvals.dat";
-        filename = filenameStream.str();
-        edump.open(filename.c_str(), std::ios_base::app);
-
-        edump << GSL_REAL(eval_i) << "\t" << GSL_IMAG(eval_i) << "\n";
-
-        edump.close();
-        filenameStream.str("");
-
-        filenameStream << "./exponent.dat";
-        filename = filenameStream.str();
-        edump.open(filename.c_str(), std::ios_base::app);
-
-        //edump << log(GSL_REAL(eval_i))/log(b) << "\n";
-        if (GSL_REAL(eval_i)>0.0)
-        {
-            edump << log(GSL_REAL(eval_i))/log(2) << "\n";
-        }
-        else
-        {
-            edump << -1000 << "\n";
-        }
-
-        edump.close();
-        filenameStream.str("");
-
-        filenameStream << "./eigvecs.dat";
-        filename = filenameStream.str();
-        edump.open(filename.c_str(), std::ios_base::app);
-
-        for (j=0; j<(jnum*jtypes); j++)
-        {
-            gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
-            edump << GSL_REAL(z) << "\t" << GSL_IMAG(z) << "\n";
-        }
-
-        edump.close();
-        filenameStream.str("");
-
-        filenameStream << "./singularvalues.dat";
-        filename = filenameStream.str();
-        edump.open(filename.c_str(), std::ios_base::app);
-
-        for (j=0; j<(jnum*jtypes); j++)
-        {
-            edump << gsl_vector_get(s_svd, j) << "\n";
-        }
-
-        edump.close();
-        filenameStream.str("");
-
-        filenameStream << "./svd_v.dat";
-        filename = filenameStream.str();
-        edump.open(filename.c_str(), std::ios_base::app);
-
-        for (j=0; j<(jnum*jtypes); j++)
-        {
-            for (k=0; k<(jnum*jtypes); k++)
-            {
-                // print out transpose(V)
-                edump << gsl_matrix_get(v_svd, k, j) << "\n";
-            }
-        }
-
-        edump.close();
-        filenameStream.str("");
-
-        gsl_vector_free (s_svd);
-        gsl_matrix_free (v_svd);
-        gsl_vector_free (w_svd);
-
-        //gsl_vector_free (eval);
-        //gsl_matrix_free (evec);
-        gsl_vector_complex_free (eval);
-        gsl_matrix_complex_free (evec);
-    }
+    gsl_vector_complex_free (eval);
+    gsl_matrix_complex_free (evec);
 }
 
 void critexp::read_set_field(int* n, int b)
@@ -300,6 +159,36 @@ void critexp::read_set_field(int* n, int b)
         fin.close();
         filenameStream.str("");
     }
+}
+
+void critexp::write_correlations(double* a, string filename)
+{
+    edump.open(filename, std::ios_base::app);
+
+    for (j=0; j<(jnum*jtypes); j++)
+    {
+        for (k=0; k<(jnum*jtypes); k++)
+        {
+            edump << a[j*jnum*jtypes+k] << "\n";
+        }
+    }
+
+    edump.close();
+    filenameStream.str("");
+}
+
+void critexp::write_t_row(double* t_i, string filename)
+{
+    tdump.open(filename, std::ios_base::app);
+
+    int j;
+    for (j=0; j<(jnum*jtypes); j++)
+    {
+        tdump << t_i[j] << "\n";
+    }
+
+    tdump.close();
+    filenameStream.str("");
 }
 
 void critexp::calc_averages(double* n, double* n_ave)
@@ -339,12 +228,78 @@ void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* 
     }
 }
 
+void critexp::stability_matrix(double* a, double* across_i, double* t)
+{
+    gsl_matrix_view a_gsl = gsl_matrix_view_array (a, jnum*jtypes, jnum*jtypes);
+    gsl_vector_view across_gsl_i = gsl_vector_view_array (across_i, (jnum*jtypes));
+
+    gsl_vector *t_i = gsl_vector_alloc (jnum*jtypes);
+
+    gsl_permutation * p = gsl_permutation_alloc (jnum*jtypes);
+
+    gsl_linalg_LU_decomp (&a_gsl.matrix, p, &s);
+    gsl_linalg_LU_solve (&a_gsl.matrix, p, &across_gsl_i.vector, t_i);
+
+    int j;
+    for (j=0; j<(jnum*jtypes); j++)
+    {
+        t[j] = gsl_vector_get (t_i, j);
+    }
+}
+
+void critexp::eigensystem(double* t, gsl_vector_complex* eval, gsl_matrix_complex* evec)
+{
+    gsl_matrix_view t_gsl = gsl_matrix_view_array (t, (jnum*jtypes), (jnum*jtypes));
+
+    gsl_vector *s_svd = gsl_vector_alloc (jnum*jtypes);
+    gsl_matrix *v_svd = gsl_matrix_alloc (jnum*jtypes, jnum*jtypes);
+    gsl_vector *w_svd = gsl_vector_alloc (jnum*jtypes);
+
+    eval = gsl_vector_complex_alloc (jnum*jtypes);
+    evec = gsl_matrix_complex_alloc (jnum*jtypes, jnum*jtypes);
+
+    gsl_eigen_nonsymmv_workspace * w = gsl_eigen_nonsymmv_alloc (jnum*jtypes);
+
+    gsl_eigen_nonsymmv (&t_gsl.matrix, eval, evec, w);
+
+    gsl_linalg_SV_decomp (&t_gsl.matrix, v_svd, s_svd, w_svd);
+
+    gsl_eigen_nonsymmv_free (w);
+
+    gsl_eigen_nonsymmv_sort (eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+
+    gsl_vector_free (s_svd);
+    gsl_matrix_free (v_svd);
+    gsl_vector_free (w_svd);
+}
+
+void critexp::write_exponents(gsl_vector_complex* eval, string filename)
+{
+    int i;
+    for (i=0; i<(jnum*jtypes); i++)
+    {
+        gsl_complex eval_i = gsl_vector_complex_get (eval, i);
+
+        filenameStream << "./exponent.dat";
+        filename = filenameStream.str();
+        edump.open(filename.c_str(), std::ios_base::app);
+
+        if (GSL_REAL(eval_i)>0.0)
+        {
+            edump << log(GSL_REAL(eval_i))/log(2) << "\n";
+        }
+
+        edump.close();
+        filenameStream.str("");
+
+        gsl_vector_complex_free (eval_i);
+    }
+}
+
 void critexp::initarrays()
 {
     na       = (double*) calloc (n_configs * jnum, sizeof(double));
     nb       = (double*) calloc (n_configs * jnum, sizeof(double));
-    t        = (double*) calloc (jnum*jtypes*jnum*jtypes, sizeof(double));
-    across_i = (double*) calloc (jnum * jtypes, sizeof(double));
 
     mem_test = true;
 }
@@ -355,8 +310,6 @@ critexp::~critexp()
     {
     delete [] na;
     delete [] nb;
-    delete [] t;
-    delete [] across_i;
 
     cout << "Deallocate critexp memory" << endl;
 
