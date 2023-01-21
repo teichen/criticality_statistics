@@ -31,11 +31,13 @@ using namespace std;
 
 pca::pca()
 {
-    std::ostringstream filenameStream;
-    std:string filename;
+    L[0] = 8;
+    L[1] = 16;
 
-    ifstream fin;
-    string line;
+    n_configs = 10;
+
+    mem_test = false;
+    initarrays();
 
     std::ofstream tdump;
     std::ofstream edump;
@@ -43,83 +45,36 @@ pca::pca()
     int i,j,k;
     int ii,jj,kk;
 
-    int L[2];
-
-    L[0] = 8;
-    L[1] = 16;
-
-    int n_configs;
-    n_configs = 10;;
-
     int config;
-    double nave;
-
-    // npts sampled at equilibrium
-
-    double n[n_configs*L[1]*L[1]*L[1]];
-    double n_trans[n_configs*L[1]*L[1]*L[1]];
 
     int s;
 
-    for (i=1; i<=n_configs; i++)
-    {
-        // read in data
-
-        filenameStream << "./L" << L[1] << "/netlib/n" << i << ".dat";
-        filename = filenameStream.str();
-
-        fin.open(filename.c_str());
-
-        k = (i-1)*L[1]*L[1]*L[1];
-        while( getline(fin,line) )
-        {
-            n[k] = atoi (line.c_str());
-            k++;
-        }
-
-        fin.close();
-        filenameStream.str("");
-    }
+    // read in data
+    read_set_field(n);
 
     // shift relative to site means
-
-    for (j=0; j<(L[1]*L[1]*L[1]); j++)
-    {
-        nave = 0.0;
-        for (i=1; i<=n_configs; i++)
-        {
-            nave = nave + n[(i-1)*L[1]*L[1]*L[1]+j];
-        }
-
-        nave = nave / (double)(n_configs);
-
-        for (i=1; i<=n_configs; i++)
-        {
-            n[(i-1)*L[1]*L[1]*L[1]+j] = n[(i-1)*L[1]*L[1]*L[1]+j] - nave;
-        }
-    }
+    mean_shift_field(n);
 
     // calculate transpose of data
-
-    for (j=0; j<(L[1]*L[1]*L[1]); j++)
-    {
-        for (i=1; i<=n_configs; i++)
-        {
-            n_trans[j*n_configs+(i-1)] = n[(i-1)*L[1]*L[1]*L[1]+j];
-        }
-    }
+    transpose_field(n, ntrans);
 
     // PCA (SVD algorithm)
 
     // PCA of transpose of data
 
-    gsl_matrix_view n_gsl = gsl_matrix_view_array (n_trans, L[1]*L[1]*L[1], n_configs);
+    gsl_matrix_view n_gsl = gsl_matrix_view_array (ntrans, L[1]*L[1]*L[1], n_configs);
 
     gsl_vector *s_svd = gsl_vector_alloc (n_configs);
     gsl_matrix *v_svd = gsl_matrix_alloc (n_configs, n_configs);
     gsl_vector *w_svd = gsl_vector_alloc (n_configs);
 
     gsl_linalg_SV_decomp (&n_gsl.matrix, v_svd, s_svd, w_svd);
+
+    std::ostringstream filenameStream;
+    std:string filename;
+
+    ifstream fin;
+    string line;
 
     filenameStream << "./pcvals.dat";
     filename = filenameStream.str();
@@ -167,6 +122,85 @@ pca::pca()
     gsl_vector_free (w_svd);
 }
 
+void pca::read_set_field(double* n)
+{    
+    std::ostringstream filenameStream;
+    std:string filename;
+
+    ifstream fin;
+    string line;
+
+    int i,j;
+    for (i=1; i<=n_configs; i++)
+    {
+        filenameStream << "./L" << L[1] << "/netlib/n" << i << ".dat";
+        filename = filenameStream.str();
+
+        fin.open(filename.c_str());
+
+        j = (i-1)*L[1]*L[1]*L[1];
+        while( getline(fin,line) )
+        {
+            n[j] = atoi (line.c_str());
+            j++;
+        }
+
+        fin.close();
+        filenameStream.str("");
+    }
+}
+
+void pca::mean_shift_field(double* n)
+{
+    double nave;
+    int i,j;
+
+    for (j=0; j<(L[1]*L[1]*L[1]); j++)
+    {
+        nave = 0.0;
+        for (i=1; i<=n_configs; i++)
+        {
+            nave = nave + n[(i-1)*L[1]*L[1]*L[1]+j];
+        }
+
+        nave = nave / (double)(n_configs);
+
+        for (i=1; i<=n_configs; i++)
+        {
+            n[(i-1)*L[1]*L[1]*L[1]+j] = n[(i-1)*L[1]*L[1]*L[1]+j] - nave;
+        }
+    }
+}
+
+void pca::transpose_field(double* n, double* ntrans)
+{
+    int i,j;
+    for (j=0; j<(L[1]*L[1]*L[1]); j++)
+    {
+        for (i=1; i<=n_configs; i++)
+        {
+            ntrans[j*n_configs+(i-1)] = n[(i-1)*L[1]*L[1]*L[1]+j];
+        }
+    }
+}
+
+void pca::initarrays()
+{
+    n       = (double*) calloc (n_configs * pow(L[1], 3), sizeof(double));
+    ntrans  = (double*) calloc (n_configs * pow(L[1], 3), sizeof(double));
+
+    mem_test = true;
+}
+
 pca::~pca()
 {
+    if(mem_test==true)
+    {
+    delete [] n;
+    delete [] ntrans;
+
+    cout << "Deallocate pca memory" << endl;
+
+    }
 }
+
