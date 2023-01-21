@@ -51,9 +51,6 @@ critexp::critexp()
     mem_test = false;
     initarrays();
 
-    std::ofstream tdump;
-    std::ofstream edump;
-
     int i,j,k;
     int ii,jj,kk;
 
@@ -163,6 +160,7 @@ void critexp::read_set_field(int* n, int b)
 
 void critexp::write_correlations(double* a, string filename)
 {
+    std::ofstream edump;
     edump.open(filename, std::ios_base::app);
 
     for (j=0; j<(jnum*jtypes); j++)
@@ -174,11 +172,11 @@ void critexp::write_correlations(double* a, string filename)
     }
 
     edump.close();
-    filenameStream.str("");
 }
 
 void critexp::write_t_row(double* t_i, string filename)
 {
+    std::ofstream tdump;
     tdump.open(filename, std::ios_base::app);
 
     int j;
@@ -188,7 +186,6 @@ void critexp::write_t_row(double* t_i, string filename)
     }
 
     tdump.close();
-    filenameStream.str("");
 }
 
 void critexp::calc_averages(double* n, double* n_ave)

@@ -39,15 +39,10 @@ pca::pca()
     mem_test = false;
     initarrays();
 
-    std::ofstream tdump;
-    std::ofstream edump;
-
     int i,j,k;
     int ii,jj,kk;
 
     int config;
-
-    int s;
 
     // read in data
     read_set_field(n);
@@ -59,67 +54,16 @@ pca::pca()
     transpose_field(n, ntrans);
 
     // PCA (SVD algorithm)
-
     // PCA of transpose of data
 
-    gsl_matrix_view n_gsl = gsl_matrix_view_array (ntrans, L[1]*L[1]*L[1], n_configs);
+    // principal values
+    double s[n_configs];
+    // transpose of V
+    double vt[n_configs * L[1]];
 
-    gsl_vector *s_svd = gsl_vector_alloc (n_configs);
-    gsl_matrix *v_svd = gsl_matrix_alloc (n_configs, n_configs);
-    gsl_vector *w_svd = gsl_vector_alloc (n_configs);
+    principal_component_analysis(n, ntrans, s, vt);
 
-    gsl_linalg_SV_decomp (&n_gsl.matrix, v_svd, s_svd, w_svd);
-
-    std::ostringstream filenameStream;
-    std:string filename;
-
-    ifstream fin;
-    string line;
-
-    filenameStream << "./pcvals.dat";
-    filename = filenameStream.str();
-    edump.open(filename.c_str(), std::ios_base::app);
-
-    for (j=0; j<n_configs; j++)
-    {
-        edump << gsl_vector_get(s_svd, j) << "\n";
-    }
-
-    edump.close();
-    filenameStream.str("");
-
-    // calculate principal components from transpose space
-    // n = U * S * transpose(V)
-    // transpose(n) = V * S * transpose(U)
-    // V = transpose(n) * U * S
-    // transpose(V) = S * transpose(U) * n
-
-    double vt;
-
-    filenameStream << "./pccomps.dat";
-    filename = filenameStream.str();
-    edump.open(filename.c_str(), std::ios_base::app);
-
-    for (i=0; i<n_configs; i++)
-    {
-        for (j=0; j<L[1]; j++)
-        {
-            vt = 0.0;
-            for (k=0; k<n_configs; k++)
-            {
-                vt = vt + gsl_vector_get(s_svd, i)*gsl_matrix_get(v_svd, k, i)*n[k*L[1]*L[1]*L[1]+j];
-            }
-            // print out transpose(V)
-            edump << vt << "\n";
-        }
-    }
-
-    edump.close();
-    filenameStream.str("");
-
-    gsl_vector_free (s_svd);
-    gsl_matrix_free (v_svd);
-    gsl_vector_free (w_svd);
+    write_principal_values(s, "./pcvals.dat");
 }
 
 void pca::read_set_field(double* n)
@@ -182,6 +126,64 @@ void pca::transpose_field(double* n, double* ntrans)
             ntrans[j*n_configs+(i-1)] = n[(i-1)*L[1]*L[1]*L[1]+j];
         }
     }
+}
+
+void pca::principal_component_analysis(double* n, double* ntrans, double* s, double* vt)
+{
+    /* principal component analysis
+       Args:
+               n (double*)     :
+               ntrans (double*):
+               s (double*)     :
+               vt (double*)    :
+    */
+    gsl_matrix_view n_gsl = gsl_matrix_view_array (ntrans, L[1]*L[1]*L[1], n_configs);
+
+    gsl_vector *s_svd = gsl_vector_alloc (n_configs);
+    gsl_matrix *v_svd = gsl_matrix_alloc (n_configs, n_configs);
+    gsl_vector *w_svd = gsl_vector_alloc (n_configs);
+
+    gsl_linalg_SV_decomp (&n_gsl.matrix, v_svd, s_svd, w_svd);
+
+    int i,j,k;
+    for (i=0; i<n_configs; i++)
+    {
+        s[i] = gsl_vector_get(s_svd, i);
+    }
+    // calculate principal components from transpose space
+    // n = U * S * transpose(V)
+    // transpose(n) = V * S * transpose(U)
+    // V = transpose(n) * U * S
+    // transpose(V) = S * transpose(U) * n
+
+    for (i=0; i<n_configs; i++)
+    {
+        for (j=0; j<L[1]; j++)
+        {
+            vt[i*L[1] + j] = 0.0;
+            for (k=0; k<n_configs; k++)
+            {
+                vt[i*L[1] + j] += gsl_vector_get(s_svd, i) * gsl_matrix_get(v_svd, k, i) * n[k*L[1]*L[1]*L[1]+j];
+            }
+        }
+    }
+    gsl_vector_free (s_svd);
+    gsl_matrix_free (v_svd);
+    gsl_vector_free (w_svd);
+}
+
+void pca::write_principal_values(double* s, string filename)
+{
+    std::ofstream edump;
+    edump.open(filename, std::ios_base::app);
+
+    int j;
+    for (j=0; j<n_configs; j++)
+    {
+        edump << s[j] << "\n";
+    }
+
+    edump.close();
 }
 
 void pca::initarrays()
