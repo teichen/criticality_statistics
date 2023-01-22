@@ -14,7 +14,7 @@ public:
     bool mem_test;
 
     blocking();
-    blocking(int);
+    void coarse_grain_field(int*, int);
 
     SimSpace lattice; // define the coarse lattice
     int L;   // length of lattice (number of sites)
@@ -27,6 +27,8 @@ public:
 
     int b;
     int bshift;
+
+    double n_collective[8];
 
     int nsites;
 

@@ -7,10 +7,14 @@ using std::endl;
 #include <time.h>
 #include <sys/time.h>
 #include "../Gofr.h"
+#include "../blocking.h"
+#include "../critexp.h"
+#include "../pca.h"
 
 using namespace std;
 int main()
 {
+    // Gofr.cpp unit tests
     Gofr gofr;
 
     int n[gofr.nL];
@@ -51,5 +55,12 @@ int main()
             assert(g[i]==0);
         }
     }
+
+    // blocking.cpp unit tests
+
+    // critexp.cpp unit tests
+    
+    // pca.cpp unit tests
+
 }
 

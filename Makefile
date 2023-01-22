@@ -4,7 +4,7 @@ SHELL = /bin/sh
 # make all
 # make criticality_stats
 
-OBJS = main.o SimSpace.o Gofr.o pca.o blocking.o
+OBJS = main.o SimSpace.o Gofr.o critexp.o pca.o blocking.o
 CFLAGS =
 CC = clang++
 INCLUDES = -I/usr/local/include

@@ -24,6 +24,7 @@ using std::ifstream;
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
+#include <gsl/gsl_vector.h>
 
 const double PI = 3.1415926535897932384626433832795028841971693;
 

@@ -36,9 +36,9 @@ blocking::blocking()
     nL  = pow(L,dim);
 }
 
-
-blocking::blocking(int b_blocking)
+void blocking::coarse_grain_field(int* n, int b_blocking)
 {
+    // TODO: call from Executive which loads configs from ./netlib/n*.dat
     b = b_blocking;
 
     coarse_lattice.set_dimensions(b);
@@ -46,9 +46,6 @@ blocking::blocking(int b_blocking)
 
     int ub[nL];
     lattice_map(bshift, ub); // the coarse cell that each original lattice site belongs to
-
-    int n_configs;
-    n_configs = 20;
 
     std::ostringstream filenameStream;
     std:string filename;
@@ -61,36 +58,18 @@ blocking::blocking(int b_blocking)
     int i,j,k;
     int ib,jb,kb;
 
-    // read in data
-
-    int n[nL];
-
     // coarse-grained n (average per cell)
     double nb[(int)pow(Lb,dim)];
 
     // collective variables for each MC config
-    double n_1; // sum\, n_i
-    double n0;  // sum_NN\, n_i * n_i+1 (i=x,y,z)
-    double n1;  // sum_{diagonal in plane}\, n_i * n_j
-    // e.g. n_(0,0,0) * n_(1,1,0)
-    double n2; // sum_{cubic diagonal}\, n_i * n_j
-    // e.g. n_(0,0,0) * n_(1,1,1)
-    double n3; // sum_{principal planes}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(0,1,0) * n_(1,0,0) * n_(1,1,0)
-    double n4; // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(1,0,0) * n_(0,1,1) * n_(1,1,1)
-    double n5; // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-    // e.g. n_(0,0,0) * n_(1,0,1) * n_(0,1,1) * n_(1,1,0)
-    double n6; // sum_NNN\, n_i * n_i+2 (i=x,y,z)
-
-    double n_1vec[n_configs];
-    double n0vec[n_configs];
-    double n1vec[n_configs];
-    double n2vec[n_configs];
-    double n3vec[n_configs];
-    double n4vec[n_configs];
-    double n5vec[n_configs];
-    double n6vec[n_configs];
+    // n_collective[0] = sum\, n_i
+    // n_collective[1] = sum_NN\, n_i * n_i+1 (i=x,y,z)
+    // n_collective[2] = sum_{diagonal in plane}\, n_i * n_j
+    // n_collective[3] = sum_{cubic diagonal}\, n_i * n_j
+    // n_collective[4] = sum_{principal planes}\, n_i * n_j * n_k * n_l
+    // n_collective[5] = sum_{diagonal planes}\, n_i * n_j * n_k * n_l
+    // n_collective[6] = sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
+    // n_collective[7] = sum_NNN\, n_i * n_i+2 (i=x,y,z)
 
     int celli,cellj,cellk,celll;
 
@@ -102,271 +81,231 @@ blocking::blocking(int b_blocking)
 
     double n_i,n_j,n_k,n_l;
 
-    int config;
-
-    for (config=0; config<n_configs; config++)
+    if (b>1)
     {
-        if (b>1)
-        {
-            bshift = rand() % b;
-        }
-        else
-        {
-            bshift = 0;
-        }
+        bshift = rand() % b;
+    }
+    else
+    {
+        bshift = 0;
+    }
 
-        // read in data
+    i = 0; j = 0; k = 0;
 
-        filenameStream << "./netlib/n" << config << ".dat";
-        filename = filenameStream.str();
+    ib = 0; jb = 0; kb = 0;
 
-        fin.open(filename.c_str());
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        nb[i] = 0.0;
+    }
 
-        j = 0;
-        while( getline(fin,line) )
-        {
-            n[j] = atoi (line.c_str());
-            j++;
-        }
+    double n_1, n0, n1, n2, n3, n4, n5, n6;
+    n_1 = 0.0; n0 = 0.0; n1 = 0.0; n2 = 0.0; n3 = 0.0; n4 = 0.0; n5 = 0.0; n6 = 0.0;
 
-        fin.close();
-        filenameStream.str("");
+    n_tmp = 0.0;
 
-        i = 0; j = 0; k = 0;
-
-        ib = 0; jb = 0; kb = 0;
-
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
-        {
-            nb[i] = 0.0;
-        }
-
-        n_1 = 0.0; n0 = 0.0; n1 = 0.0; n2 = 0.0; n3 = 0.0; n4 = 0.0; n5 = 0.0; n6 = 0.0;
-
-        n_tmp = 0.0;
-
-        n_i = 0.0; n_j = 0.0; n_k = 0.0; n_l = 0.0;
+    n_i = 0.0; n_j = 0.0; n_k = 0.0; n_l = 0.0;
 
     #pragma omp parallel for shared (n,nb,ub) private (i,n_tmp)
-        for (i=0; i<(int)(pow(L,dim)); i++)
-        {
-        #pragma omp atomic read
-            n_tmp = n[i];
-        #pragma omp atomic write
-            nb[ub[i]] += n_tmp;
-        }
+    for (i=0; i<(int)(pow(L,dim)); i++)
+    {
+    #pragma omp atomic read
+        n_tmp = n[i];
+    #pragma omp atomic write
+        nb[ub[i]] += n_tmp;
+    }
 
     #pragma omp parallel for shared (nb) private (i,n_tmp) reduction(+:n_1)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
-        {
-        #pragma omp atomic read
-            n_tmp = nb[i];
-        #pragma omp atomic write
-            nb[i] = n_tmp / (double)(pow(b,dim));
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+    #pragma omp atomic read
+        n_tmp = nb[i];
+    #pragma omp atomic write
+        nb[i] = n_tmp / (double)(pow(b,dim));
 
-            n_1 += n_tmp / (double)(pow(b,dim));
-        }
+        n_1 += n_tmp / (double)(pow(b,dim));
+    }
 
-        ndump.open("nb.dat", std::ios_base::app);
-
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
-        {
-            ndump << nb[i] << "\n";
-        }
-        ndump.close();
+    // TODO: write out coarse grained field to nb.dat
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n0)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_NN\, n_i * n_i+1 (i=x,y,z)
+        lattice.unpack_position(i, ri);
+        lattice.nearest_neighbors(ri, nn);
+    
+        for (j=0; j<3; j++)
         {
-            // sum_NN\, n_i * n_i+1 (i=x,y,z)
-            lattice.unpack_position(i, ri);
-            lattice.nearest_neighbors(ri, nn);
-        
-            for (j=0; j<3; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<3; j++)
-            {
-                n_j = nn_vals[j];
-
-                n0 += n_i * n_j;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<3; j++)
+        {
+            n_j = nn_vals[j];
+
+            n0 += n_i * n_j;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n1)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_{diagonal in plane}\, n_i * n_j
+
+        lattice.unpack_position(i, ri);
+        lattice.diagonal_in_plane(ri, nn);
+    
+        for (j=0; j<6; j++)
         {
-            // sum_{diagonal in plane}\, n_i * n_j
-
-            lattice.unpack_position(i, ri);
-            lattice.diagonal_in_plane(ri, nn);
-        
-            for (j=0; j<6; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<6; j++)
-            {
-                n_j = nn_vals[j];
-
-                n1 += n_i * n_j;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<6; j++)
+        {
+            n_j = nn_vals[j];
+
+            n1 += n_i * n_j;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n2)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_{cubic diagonal}\, n_i * n_j
+        lattice.unpack_position(i, ri);
+        lattice.cubic_diagonal(ri, nn);
+    
+        for (j=0; j<4; j++)
         {
-            // sum_{cubic diagonal}\, n_i * n_j
-            lattice.unpack_position(i, ri);
-            lattice.cubic_diagonal(ri, nn);
-        
-            for (j=0; j<4; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<4; j++)
-            {
-                n_j = nn_vals[j];
-
-                n2 += n_i * n_j;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<4; j++)
+        {
+            n_j = nn_vals[j];
+
+            n2 += n_i * n_j;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n3)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_{principal planes}\, n_i * n_j * n_k * n_l
+
+        lattice.unpack_position(i, ri);
+        lattice.principal_planes(ri, nn);
+    
+        for (j=0; j<9; j++)
         {
-            // sum_{principal planes}\, n_i * n_j * n_k * n_l
-
-            lattice.unpack_position(i, ri);
-            lattice.principal_planes(ri, nn);
-        
-            for (j=0; j<9; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<3; j++) // three triplets
-            {
-                n_j = nn_vals[3*j+0];
-                n_k = nn_vals[3*j+1];
-                n_l = nn_vals[3*j+2];
-
-                n3 += n_i * n_j * n_k * n_l;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<3; j++) // three triplets
+        {
+            n_j = nn_vals[3*j+0];
+            n_k = nn_vals[3*j+1];
+            n_l = nn_vals[3*j+2];
+
+            n3 += n_i * n_j * n_k * n_l;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n4)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
+        lattice.unpack_position(i, ri);
+        lattice.diagonal_planes(ri, nn);
+    
+        for (j=0; j<18; j++)
         {
-            // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-            lattice.unpack_position(i, ri);
-            lattice.diagonal_planes(ri, nn);
-        
-            for (j=0; j<18; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<6; j++) // three triplets
-            {
-                n_j = nn_vals[3*j+0];
-                n_k = nn_vals[3*j+1];
-                n_l = nn_vals[3*j+2];
-
-                n4 += n_i * n_j * n_k * n_l;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<6; j++) // three triplets
+        {
+            n_j = nn_vals[3*j+0];
+            n_k = nn_vals[3*j+1];
+            n_l = nn_vals[3*j+2];
+
+            n4 += n_i * n_j * n_k * n_l;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j,n_k,n_l) reduction(+:n5)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
+        lattice.unpack_position(i, ri);
+        lattice.tetrahedral_vertices(ri, nn);
+    
+        for (j=0; j<6; j++)
         {
-            // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-            lattice.unpack_position(i, ri);
-            lattice.tetrahedral_vertices(ri, nn);
-        
-            for (j=0; j<6; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<2; j++) // three triplets
-            {
-                n_j = nn_vals[3*j+0];
-                n_k = nn_vals[3*j+1];
-                n_l = nn_vals[3*j+2];
-
-                n5 += n_i * n_j * n_k * n_l;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
+
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<2; j++) // three triplets
+        {
+            n_j = nn_vals[3*j+0];
+            n_k = nn_vals[3*j+1];
+            n_l = nn_vals[3*j+2];
+
+            n5 += n_i * n_j * n_k * n_l;
+        }
+    }
 
     #pragma omp parallel for shared (nb) private (i,j,ri,nn,nn_vals,n_i,n_j) reduction(+:n6)
-        for (i=0; i<(int)(pow(Lb,dim)); i++)
+    for (i=0; i<(int)(pow(Lb,dim)); i++)
+    {
+        lattice.unpack_position(i, ri);
+        lattice.next_nearest_neighbors(ri, nn);
+    
+        for (j=0; j<3; j++)
         {
-            lattice.unpack_position(i, ri);
-            lattice.next_nearest_neighbors(ri, nn);
-        
-            for (j=0; j<3; j++)
-            {
-        #pragma omp atomic read
-                nn_vals[j] = nb[nn[j]];
-            }
-
-        #pragma omp atomic read
-            n_i = nb[i];
-            for (j=0; j<3; j++)
-            {
-                n_j = nn_vals[j];
-
-                n6 += n_i * n_j;
-            }
+    #pragma omp atomic read
+            nn_vals[j] = nb[nn[j]];
         }
 
-        n_1vec[config] = n_1;
-        n0vec[config] = n0;
-        n1vec[config] = n1;
-        n2vec[config] = n2;
-        n3vec[config] = n3;
-        n4vec[config] = n4;
-        n5vec[config] = n5;
-        n6vec[config] = n6;
+    #pragma omp atomic read
+        n_i = nb[i];
+        for (j=0; j<3; j++)
+        {
+            n_j = nn_vals[j];
 
+            n6 += n_i * n_j;
+        }
     }
 
-    // save results to disk
+    n_collective[0] = n_1;
+    n_collective[1] = n0;
+    n_collective[2] = n1;
+    n_collective[3] = n2;
+    n_collective[4] = n3;
+    n_collective[5] = n4;
+    n_collective[6] = n5;
+    n_collective[7] = n6;
 
-    ndump.open("nvec.dat", std::ios_base::app);
-
-    for (config=0; config<n_configs; config++)
-    {
-        ndump << n_1vec[config] << "\n" << n0vec[config] << "\n" << n1vec[config] << "\n" << 
-                 n2vec[config] << "\n" << n3vec[config] << "\n" <<
-                 n4vec[config] << "\n" << n5vec[config] << "\n" <<
-                 n6vec[config] << "\n";
-    }
-
-    ndump.close();
+    // TODO: save results to disk, write n_collective to nvec.dat
 
 }
 

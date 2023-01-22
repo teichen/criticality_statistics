@@ -4,11 +4,11 @@ SHELL = /bin/sh
 # make stats_tests
 # make all
 
-OBJS = stats_tests.o ../Gofr.o ../SimSpace.o
+OBJS = stats_tests.o ../Gofr.o ../SimSpace.o ../blocking.o ../critexp.o ../pca.o
 CFLAGS =
 CC = clang++
 INCLUDES = 
-LIBS =
+LIBS = -L/usr/local/lib -lgsl
 
 all:stats_tests
 
