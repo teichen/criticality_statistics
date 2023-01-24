@@ -44,6 +44,9 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
     coarse_lattice.set_dimensions(b);
     Lb = coarse_lattice.L;
 
+    mem_test = false;
+    initarrays();
+
     int ub[nL];
     lattice_map(bshift, ub); // the coarse cell that each original lattice site belongs to
 
@@ -57,9 +60,6 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
 
     int i,j,k;
     int ib,jb,kb;
-
-    // coarse-grained n (average per cell)
-    double nb[(int)pow(Lb,dim)];
 
     // collective variables for each MC config
     // n_collective[0] = sum\, n_i
@@ -340,6 +340,18 @@ void blocking::lattice_map(int bshift, int* ub)
     }
 }
 
+void blocking::initarrays()
+{
+    nb = (double*) calloc (pow(Lb, dim), sizeof(double));
+
+    mem_test = true;
+}
+
 blocking::~blocking()
 {
+    if(mem_test==true)
+    {
+    delete [] nb;
+    }
 }
+

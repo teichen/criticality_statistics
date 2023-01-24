@@ -8,7 +8,7 @@ OBJS = main.o SimSpace.o Gofr.o critexp.o pca.o blocking.o
 CFLAGS =
 CC = clang++
 INCLUDES = -I/usr/local/include
-LIBS = -L/usr/local/lib -lgsl
+LIBS = -L/usr/local/lib -lgsl -lgslcblas
 
 all:criticality_stats
 

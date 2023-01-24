@@ -8,7 +8,7 @@ OBJS = stats_tests.o ../Gofr.o ../SimSpace.o ../blocking.o ../critexp.o ../pca.o
 CFLAGS =
 CC = clang++
 INCLUDES = 
-LIBS = -L/usr/local/lib -lgsl
+LIBS = -L/usr/local/lib -lgsl -lgslcblas
 
 all:stats_tests
 

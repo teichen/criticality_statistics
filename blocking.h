@@ -30,9 +30,13 @@ public:
 
     double n_collective[8];
 
+    double* nb;
+
     int nsites;
 
     void lattice_map(int, int*);
+
+    void initarrays();
 
     ~blocking(); 
 

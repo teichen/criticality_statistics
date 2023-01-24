@@ -16,13 +16,16 @@ public:
     bool mem_test;
 
     critexp();
+    critexp(bool, int&, int&, double*, double*);
 
-    int L[2];
+    bool logging;
     int n_configs;
-    int jtypes,jnum;
+    int n_coord;
 
+    double* exponents;
     double* na;
     double* nb;
+    void initarrays();
 
     void read_set_field(double*, int);
     void write_correlations(double*, string);
@@ -34,8 +37,6 @@ public:
     void write_exponents(double*, string);
 
     int s;
-
-    void initarrays();
 
     void read_set_field(int*, int);
 

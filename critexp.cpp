@@ -36,43 +36,47 @@ using namespace std;
 
 critexp::critexp()
 {
-    int b;
-    b = 4;
+}
 
-    L[0] = 8;
-    L[1] = 16;
-
-    n_configs = 10;
-
-    jtypes = 5;
-    jnum   = 8;
+critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
+{
+    logging   = logger;
+    n_configs = configs;
+    n_coord   = jnum;
 
     mem_test = false;
     initarrays();
 
-    int i,j,k;
-    int ii,jj,kk;
+    int i;
+    for (i=0; i<n_coord; i++)
+    {
+        na[i] = n1[i];
+        nb[i] = n2[i];
+    }
 
-    // read in data
-
-    read_set_field(nb, b/2);
-    read_set_field(na, b);
+    // TODO: read_set_field() from disk (collective coordinates averaged 
+    //       with various blocking levels, b)
+    // read_set_field(nb, b/2);
+    // read_set_field(na, b);
 
     // calculate averages
-    double na_ave[jnum];
-    double nb_ave[jnum];
+    double na_ave[n_coord];
+    double nb_ave[n_coord];
     calc_averages(na, na_ave);
     calc_averages(nb, nb_ave);
 
     // calculate correlation functions
-    double a[jnum*jtypes*jnum*jtypes];
-    double across[jnum*jtypes*jnum*jtypes];
+    double a[n_coord * n_coord];
+    double across[n_coord * n_coord];
 
     calc_correlations(na, na, na_ave, na_ave, a);
     calc_correlations(na, nb, na_ave, nb_ave, across);
 
-    write_correlations(a, "./a.dat");
-    write_correlations(across, "./across.dat");
+    if(logging)
+    {
+        write_correlations(a, "./a.dat");
+        write_correlations(across, "./across.dat");
+    }
 
     // calculate condition numbers
 
@@ -80,24 +84,25 @@ critexp::critexp()
     // Ax=B --> x = linsolve(A,B)
     // t = linsolve(a,across)
 
-    double t[jnum * jtypes * jnum * jtypes];
-    double t_i[jnum * jtypes];
-    double across_i[jnum * jtypes];
+    double t[n_coord * n_coord];
+    double t_i[n_coord];
+    double across_i[n_coord];
  
-    for (i=0; i<(jnum*jtypes); i++)
+    int j;
+    for (i=0; i<n_coord; i++)
     {
-        for (j=0; j<(jnum*jtypes); j++)
+        for (j=0; j<n_coord; j++)
         {
-            across_i[j] = across[j*(jnum*jtypes)+i];
+            across_i[j] = across[j*n_coord + i];
         }
 
         stability_matrix(a, across_i, t_i);
 
         write_t_row(t_i, "./t_stab.dat");
 
-        for (j=0; j<(jnum*jtypes); j++)
+        for (j=0; j<n_coord; j++)
         {
-            t[j*(jnum*jtypes)+i] = t_i[j];
+            t[j*n_coord + i] = t_i[j];
         }
     }
 
@@ -105,46 +110,22 @@ critexp::critexp()
     // int gsl_linalg_cholesky_rcond (const gsl_matrix * cholesky, double * rcond, gsl_vector * work)
 
     // eigensystem:
-    double eval[jnum * jtypes];
-    double evec[jnum * jtypes * jnum * jtypes];
+    double eval[n_coord];
+    double evec[n_coord * n_coord];
 
     eigensystem(t, eval, evec);
 
-    write_exponents(eval, "./exponent.dat");
-
-}
-
-void critexp::read_set_field(double* n, int b)
-{    
-    std::ostringstream filenameStream;
-    std:string filename;
-
-    ifstream fin;
-    string line;
-
-    int i,j;
-    for (i=1; i<=n_configs; i++)
+    for (i=0; i<n_coord; i++)
     {
-        for (j=0; j<jnum; j++)
+        if (eval[i]>0.0)
         {
-            n[(i-1)*jnum+j] = 0.0;
+            exponents[i] = log(eval[i])/log(2);
         }
+    }
 
-        filenameStream << "./L" << L[1] << "/" << i << "/nvec_b" << b << ".dat";
-        filename = filenameStream.str();
-
-        fin.open(filename.c_str());
-
-        j = (i-1)*jnum;
-        while( getline(fin,line) )
-        {
-            n[j] = atof (line.c_str());
-
-            j++;
-        }
-
-        fin.close();
-        filenameStream.str("");
+    if(logging)
+    {
+        write_exponents(exponents, "./exponent.dat");
     }
 }
 
@@ -154,11 +135,11 @@ void critexp::write_correlations(double* a, string filename)
     edump.open(filename, std::ios_base::app);
 
     int j,k;
-    for (j=0; j<(jnum*jtypes); j++)
+    for (j=0; j<n_coord; j++)
     {
-        for (k=0; k<(jnum*jtypes); k++)
+        for (k=0; k<n_coord; k++)
         {
-            edump << a[j*jnum*jtypes+k] << "\n";
+            edump << a[j*n_coord + k] << "\n";
         }
     }
 
@@ -171,7 +152,7 @@ void critexp::write_t_row(double* t_i, string filename)
     tdump.open(filename, std::ios_base::app);
 
     int j;
-    for (j=0; j<(jnum*jtypes); j++)
+    for (j=0; j<n_coord; j++)
     {
         tdump << t_i[j] << "\n";
     }
@@ -182,13 +163,13 @@ void critexp::write_t_row(double* t_i, string filename)
 void critexp::calc_averages(double* n, double* nave)
 {
     int i,j;
-    for (i=0; i<jnum; i++)
+    for (i=0; i<n_coord; i++)
     {
         nave[i] = 0.0;
 
         for (j=0; j<n_configs; j++)
         {
-            nave[i] = nave[i] + n[j*jnum+i];
+            nave[i] = nave[i] + n[j*n_coord+i];
         }
 
         nave[i] = nave[i] / (double)(n_configs);
@@ -199,37 +180,38 @@ void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* 
 {
     int i,j,k;
 
-    for (i=0; i<jnum; i++)
+    for (i=0; i<n_coord; i++)
     {
-        for (j=0; j<jnum; j++)
+        for (j=0; j<n_coord; j++)
         {
-            c12[i*jnum+j] = 0.0;
+            c12[i*n_coord+j] = 0.0;
 
             for (k=0; k<n_configs; k++)
             {
-                c12[i*jnum+j] = c12[i*jnum+j] + na[k*jnum+i]*na[k*jnum+j];
+                c12[i*n_coord+j] = c12[i*n_coord+j] + na[k*n_coord+i]*na[k*n_coord+j];
             }
-            c12[i*jnum+j] = c12[i*jnum+j] / (double)(n_configs);
+            c12[i*n_coord+j] = c12[i*n_coord+j] / (double)(n_configs);
 
-            c12[i*jnum+j] = c12[i*jnum+j] - n1_ave[i]*n2_ave[j];
+            c12[i*n_coord+j] = c12[i*n_coord+j] - n1_ave[i]*n2_ave[j];
         }
     }
 }
 
 void critexp::stability_matrix(double* a, double* across_i, double* t)
 {
-    gsl_matrix_view a_gsl = gsl_matrix_view_array (a, jnum*jtypes, jnum*jtypes);
-    gsl_vector_view across_gsl_i = gsl_vector_view_array (across_i, (jnum*jtypes));
+    gsl_matrix_view a_gsl = gsl_matrix_view_array (a, n_coord, n_coord);
+    gsl_vector_view across_gsl_i = gsl_vector_view_array (across_i, (n_coord));
 
-    gsl_vector *t_i = gsl_vector_alloc (jnum*jtypes);
+    gsl_vector *t_i = gsl_vector_alloc (n_coord);
 
-    gsl_permutation * p = gsl_permutation_alloc (jnum*jtypes);
+    gsl_permutation * p = gsl_permutation_alloc (n_coord);
 
     gsl_linalg_LU_decomp (&a_gsl.matrix, p, &s);
+    
     gsl_linalg_LU_solve (&a_gsl.matrix, p, &across_gsl_i.vector, t_i);
 
     int j;
-    for (j=0; j<(jnum*jtypes); j++)
+    for (j=0; j<(n_coord); j++)
     {
         t[j] = gsl_vector_get (t_i, j);
     }
@@ -239,16 +221,16 @@ void critexp::stability_matrix(double* a, double* across_i, double* t)
 
 void critexp::eigensystem(double* t, double* eval, double* evec)
 {
-    gsl_matrix_view t_gsl = gsl_matrix_view_array (t, (jnum*jtypes), (jnum*jtypes));
+    gsl_matrix_view t_gsl = gsl_matrix_view_array (t, (n_coord), (n_coord));
 
-    gsl_vector *s_svd = gsl_vector_alloc (jnum*jtypes);
-    gsl_matrix *v_svd = gsl_matrix_alloc (jnum*jtypes, jnum*jtypes);
-    gsl_vector *w_svd = gsl_vector_alloc (jnum*jtypes);
+    gsl_vector *s_svd = gsl_vector_alloc (n_coord);
+    gsl_matrix *v_svd = gsl_matrix_alloc (n_coord, n_coord);
+    gsl_vector *w_svd = gsl_vector_alloc (n_coord);
 
-    gsl_vector_complex *gsl_eval = gsl_vector_complex_alloc (jnum*jtypes);
-    gsl_matrix_complex *gsl_evec = gsl_matrix_complex_alloc (jnum*jtypes, jnum*jtypes);
+    gsl_vector_complex *gsl_eval = gsl_vector_complex_alloc (n_coord);
+    gsl_matrix_complex *gsl_evec = gsl_matrix_complex_alloc (n_coord, n_coord);
 
-    gsl_eigen_nonsymmv_workspace * w = gsl_eigen_nonsymmv_alloc (jnum*jtypes);
+    gsl_eigen_nonsymmv_workspace * w = gsl_eigen_nonsymmv_alloc (n_coord);
 
     gsl_eigen_nonsymmv (&t_gsl.matrix, gsl_eval, gsl_evec, w);
 
@@ -262,15 +244,15 @@ void critexp::eigensystem(double* t, double* eval, double* evec)
     gsl_complex evec_ij;
 
     int i,j;
-    for (i=0; i<jnum*jtypes; i++)
+    for (i=0; i<n_coord; i++)
     {
         eval_i  = gsl_vector_complex_get (gsl_eval, i);
         eval[i] = (double)(GSL_REAL(eval_i));
 
-        for (j=0; j<jnum*jtypes; j++)
+        for (j=0; j<n_coord; j++)
         {
             evec_ij = gsl_matrix_complex_get (gsl_evec, i, j);
-            evec[i*jnum*jtypes + j] = (double)(GSL_REAL(evec_ij));
+            evec[i*n_coord + j] = (double)(GSL_REAL(evec_ij));
         }
     }
 
@@ -288,7 +270,7 @@ void critexp::write_exponents(double* eval, string filename)
     edump.open(filename, std::ios_base::app);
 
     int i;
-    for (i=0; i<(jnum*jtypes); i++)
+    for (i=0; i<(n_coord); i++)
     {
         edump.open(filename, std::ios_base::app);
 
@@ -303,16 +285,18 @@ void critexp::write_exponents(double* eval, string filename)
 
 void critexp::initarrays()
 {
-    na       = (double*) calloc (n_configs * jnum, sizeof(double));
-    nb       = (double*) calloc (n_configs * jnum, sizeof(double));
+    exponents = (double*) calloc (n_coord, sizeof(double));
+    na        = (double*) calloc (n_coord, sizeof(double));
+    nb        = (double*) calloc (n_coord, sizeof(double));
 
-    mem_test = true;
+    mem_test  = true;
 }
 
 critexp::~critexp()
 {
     if(mem_test==true)
     {
+    delete [] exponents;
     delete [] na;
     delete [] nb;
 

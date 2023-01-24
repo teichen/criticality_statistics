@@ -28,6 +28,7 @@ int main()
     {
         g[i] = 0.0;
     }
+    // example field: two spin up
     for (i=0; i<gofr.nL; i++)
     {
         //n[i] = 2*(rand() % 2)-1;
@@ -57,9 +58,41 @@ int main()
     }
 
     // blocking.cpp unit tests
+    int b = 4;
+    blocking coarse_grain;
+    coarse_grain.coarse_grain_field(n, b);
+
+    int nLb;
+    nLb = pow(coarse_grain.Lb, 3);
+    
+    // validate the sum, example field has two spin up
+    double sum_b = 0.0;
+    sum_b = -1 * (pow(b, 3)-2) + 2;
+    sum_b /= pow(b, 3);
+    for (i=1; i<nLb; i++)
+    {
+        sum_b += -1;
+    }
+    
+    assert(coarse_grain.n_collective[0]==sum_b);
 
     // critexp.cpp unit tests
-    
+    bool logging;
+    logging = 0;
+
+    int n_configs = 1;
+    int jnum      = 8;
+    double na[n_configs * jnum];
+    double nb[n_configs * jnum];
+
+    for (i=0; i<jnum; i++)
+    {
+        na[i] = coarse_grain.n_collective[i];
+        nb[i] = coarse_grain.n_collective[i];
+    }
+
+    critexp criticality(logging, n_configs, jnum, na, nb);
+
     // pca.cpp unit tests
 
 }
