@@ -87,7 +87,7 @@ critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
     double t[n_coord * n_coord];
     double t_i[n_coord];
     double across_i[n_coord];
- 
+
     int j;
     for (i=0; i<n_coord; i++)
     {
@@ -188,7 +188,7 @@ void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* 
 
             for (k=0; k<n_configs; k++)
             {
-                c12[i*n_coord+j] = c12[i*n_coord+j] + na[k*n_coord+i]*na[k*n_coord+j];
+                c12[i*n_coord+j] = c12[i*n_coord+j] + n1[k*n_coord+i]*n2[k*n_coord+j];
             }
             c12[i*n_coord+j] = c12[i*n_coord+j] / (double)(n_configs);
 
