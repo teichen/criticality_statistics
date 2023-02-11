@@ -20,11 +20,15 @@ SimSpace::SimSpace()
 
 void SimSpace::set_dimensions(int b)
 {
+    /* set lattice length under the coarse grain scale, b
+    */
     L = L / b;
 }
 
 double SimSpace::separation(int* r1, int* r2)
 {
+    /* calculate a lattice separation between two d=3 positions
+    */
     double d[3];
     d[0] = 0.0; d[1] = 0.0; d[2] = 0.0;
 
@@ -54,6 +58,9 @@ double SimSpace::separation(int* r1, int* r2)
 
 void SimSpace::unpack_position(int n, int r[3])
 {
+    /* unpack a flattened position (single integer) into
+       three coordinates subject to the lattice length
+    */
     r[2] = n % L;
     r[1] = (int)((n - r[2]) / L) % L;
     r[0] = (int)((n - r[2] - r[1] * L) / pow(L, 2)) % L;
@@ -61,7 +68,8 @@ void SimSpace::unpack_position(int n, int r[3])
 
 int SimSpace::flatten_position(int i, int j, int k)
 {
-    // position n -> (x*L^2+y*L+z)
+    /* flatten a three coordinate position
+    */
     int n;
     n = (int)(i * pow(L, 2) + j * L + k);
 
@@ -70,6 +78,9 @@ int SimSpace::flatten_position(int i, int j, int k)
 
 void SimSpace::nearest_neighbors(int* r, int nn[3])
 {
+    /* fill nn with an array of flattened lattice sites for
+       the three unique nearest-neighbors
+    */
     int i;
     for (i=0; i<dim; i++)
     {
@@ -87,12 +98,14 @@ void SimSpace::nearest_neighbors(int* r, int nn[3])
 
 void SimSpace::diagonal_in_plane(int* r, int nn[6])
 {
-    // sum_{diagonal in plane}\, n_i * n_j
-    // directions: n_(1,1,0), n_(1,-1,0),
-    //             n_(1,0,1), n_(1,0,-1),
-    //             n_(0,1,1), n_(0,1,-1)
-    // return n_j only
-
+    /* fill nn with an array of diagonal in plane neighbors
+       organized according to the following:
+       sum_{diagonal in plane}\, n_i * n_j
+       directions: n_(1,1,0), n_(1,-1,0),
+                   n_(1,0,1), n_(1,0,-1),
+                   n_(0,1,1), n_(0,1,-1)
+       return n_j only
+    */
     int i, j;
     for (i=0; i<6; i++)
     {
@@ -124,10 +137,13 @@ void SimSpace::diagonal_in_plane(int* r, int nn[6])
 
 void SimSpace::cubic_diagonal(int* r, int nn[4])
 {
-    // sum_{cubic diagonal}\, n_i * n_j
-    // directions: n_(1,1,1), n_(1,1,-1),
-    //             n_(1,-1,-1), n_(1,-1,1)
-    // return n_j only
+    /* fill nn with an array of cubic diagonal neighbors
+       organized according to the following:
+       sum_{cubic diagonal}\, n_i * n_j
+       directions: n_(1,1,1), n_(1,1,-1),
+                   n_(1,-1,-1), n_(1,-1,1)
+       return n_j only
+    */
 
     int i, j, k;
     for (i=0; i<4; i++)
@@ -171,12 +187,15 @@ void SimSpace::cubic_diagonal(int* r, int nn[4])
 
 void SimSpace::principal_planes(int* r, int nn[9])
 {
-    // sum_{principal planes}\, n_i * n_j * n_k * n_l
-    // directions: n_(1,0,0), n_(0,1,0),
-    //             n_(1,1,0), n_(1,0,0),
-    //             n_(0,0,1), n_(1,0,1),
-    //             n_(0,1,0), n_(0,0,1),
-    //             n_(0,1,1)
+    /* fill nn with an array of principal plane neighbors
+       organized according to the following:
+       sum_{principal planes}\, n_i * n_j * n_k * n_l
+       directions: n_(1,0,0), n_(0,1,0),
+                   n_(1,1,0), n_(1,0,0),
+                   n_(0,0,1), n_(1,0,1),
+                   n_(0,1,0), n_(0,0,1),
+                   n_(0,1,1)
+    */
     int i, j, k, di, dj;
     for (i=0; i<9; i++)
     {
@@ -222,13 +241,16 @@ void SimSpace::principal_planes(int* r, int nn[9])
 
 void SimSpace::diagonal_planes(int* r, int nn[18])
 {
-    // sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-    // directions: n_(1,0,0), n_(0,1,1), n_(1,1,1),
-    //             n_(1,0,0), n_(0,1,-1), n_(1,1,-1),
-    //             n_(0,1,0), n_(1,0,1), n_(1,1,1),
-    //             n_(0,1,0), n_(1,0,-1), n_(1,1,-1),
-    //             n_(0,0,1), n_(1,1,0), n_(1,1,1),
-    //             n_(0,0,1), n_(1,-1,0), n_(1,-1,1)
+    /* fill nn with an array of diagonal plane neighbors
+       organized according to the following:
+       sum_{diagonal planes}\, n_i * n_j * n_k * n_l
+       directions: n_(1,0,0), n_(0,1,1), n_(1,1,1),
+                   n_(1,0,0), n_(0,1,-1), n_(1,1,-1),
+                   n_(0,1,0), n_(1,0,1), n_(1,1,1),
+                   n_(0,1,0), n_(1,0,-1), n_(1,1,-1),
+                   n_(0,0,1), n_(1,1,0), n_(1,1,1),
+                   n_(0,0,1), n_(1,-1,0), n_(1,-1,1)
+    */
     int i, j, k;
     for (i=0; i<18; i++)
     {
@@ -286,9 +308,12 @@ void SimSpace::diagonal_planes(int* r, int nn[18])
 
 void SimSpace::tetrahedral_vertices(int* r, int nn[6])
 {
-    // sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-    // directions: n_(1,0,1), n_(1,1,0), n_(0,1,1),
-    //             n_(1,0,1), n_(1,-1,0), n_(0,-1,1)
+    /* fill nn with tetrahedral vertex neighbors
+       organized according to the following:
+       sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
+       directions: n_(1,0,1), n_(1,1,0), n_(0,1,1),
+                   n_(1,0,1), n_(1,-1,0), n_(0,-1,1)
+    */
     int i, j, k;
     for (i=0; i<6; i++)
     {
@@ -341,7 +366,10 @@ void SimSpace::tetrahedral_vertices(int* r, int nn[6])
 
 void SimSpace::next_nearest_neighbors(int* r, int nn[3])
 {
-    // sum_NNN\, n_i * n_i+2 (i=x,y,z)
+    /* fill nn with an array of next nearest neighbors
+       organized according to the following:
+       sum_NNN\, n_i * n_i+2 (i=x,y,z)
+    */
     int i;
     for (i=0; i<dim; i++)
     {

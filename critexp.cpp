@@ -40,6 +40,17 @@ critexp::critexp()
 
 critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
 {
+    /* calculate critical exponents for the collective statistics of a number
+       of configurations sampled near equilibrium but coarsened at different
+       blocking levels, n1 and n2
+
+       Args:
+               logger (bool)      : if true, print Glauber dynamics
+               configs (int)      : number of configurations
+               jnum (int)         : number of collective statistics
+               n1 (array)         : first array of collective statistics
+               n2 (array)         : second array of collective statistics
+    */
     logging   = logger;
     n_configs = configs;
     n_coord   = jnum;
@@ -78,12 +89,12 @@ critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
         write_correlations(across, "./across.dat");
     }
 
-    // calculate condition numbers
+    /* calculate condition numbers
 
-    // calculate stability matrix
-    // Ax=B --> x = linsolve(A,B)
-    // t = linsolve(a,across)
-
+       calculate stability matrix
+       Ax=B --> x = linsolve(A,B)
+       t = linsolve(a,across)
+    */
     double t[n_coord * n_coord];
     double t_i[n_coord];
     double across_i[n_coord];
@@ -106,10 +117,10 @@ critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
         }
     }
 
-    // condition number:
-    // int gsl_linalg_cholesky_rcond (const gsl_matrix * cholesky, double * rcond, gsl_vector * work)
-
-    // eigensystem:
+    /* condition number:
+       int gsl_linalg_cholesky_rcond (const gsl_matrix * cholesky, double * rcond, gsl_vector * work)
+       eigensystem:
+    */
     double eval[n_coord];
     double evec[n_coord * n_coord];
 
@@ -131,6 +142,8 @@ critexp::critexp(bool logger, int& configs, int& jnum, double* n1, double* n2)
 
 void critexp::write_correlations(double* a, string filename)
 {
+    /* write out correlations
+    */
     std::ofstream edump;
     edump.open(filename, std::ios_base::app);
 
@@ -148,6 +161,8 @@ void critexp::write_correlations(double* a, string filename)
 
 void critexp::write_t_row(double* t_i, string filename)
 {
+    /* write out the stability matrix
+    */
     std::ofstream tdump;
     tdump.open(filename, std::ios_base::app);
 
@@ -162,6 +177,8 @@ void critexp::write_t_row(double* t_i, string filename)
 
 void critexp::calc_averages(double* n, double* nave)
 {
+    /* calculate averages of the collective coordinates
+    */
     int i,j;
     for (i=0; i<n_coord; i++)
     {
@@ -178,6 +195,8 @@ void critexp::calc_averages(double* n, double* nave)
 
 void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* n2_ave, double* c12)
 {
+    /* calculate correlation between the two blocking levels
+    */
     int i,j,k;
 
     for (i=0; i<n_coord; i++)
@@ -199,6 +218,8 @@ void critexp::calc_correlations(double* n1, double* n2, double* n1_ave, double* 
 
 void critexp::stability_matrix(double* a, double* across_i, double* t)
 {
+    /* calculate the stability matrix
+    */
     gsl_matrix_view a_gsl = gsl_matrix_view_array (a, n_coord, n_coord);
     gsl_vector_view across_gsl_i = gsl_vector_view_array (across_i, (n_coord));
 
@@ -221,6 +242,9 @@ void critexp::stability_matrix(double* a, double* across_i, double* t)
 
 void critexp::eigensystem(double* t, double* eval, double* evec)
 {
+    /* decompose the stability matrix into an eigensystem for the 
+       calculation of critical exponents
+    */
     gsl_matrix_view t_gsl = gsl_matrix_view_array (t, (n_coord), (n_coord));
 
     gsl_vector *s_svd = gsl_vector_alloc (n_coord);
@@ -266,6 +290,8 @@ void critexp::eigensystem(double* t, double* eval, double* evec)
 
 void critexp::write_exponents(double* eval, string filename)
 {
+    /* write out critical exponents
+    */
     std::ofstream edump;
     edump.open(filename, std::ios_base::app);
 

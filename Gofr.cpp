@@ -36,6 +36,8 @@ Gofr::Gofr()
 
 void Gofr::rdf(int* n, double* gofr)
 {
+    /* radial distribution function
+    */
     int i,j;
 
     int ri[3];

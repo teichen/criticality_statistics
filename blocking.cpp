@@ -38,7 +38,20 @@ blocking::blocking()
 
 void blocking::coarse_grain_field(int* n, int b_blocking)
 {
-    // TODO: call from Executive which loads configs from ./netlib/n*.dat
+    /* coarse grain a binary field according to a blocking length
+       
+       collective variables for each MC config
+       n_collective[0] = sum\, n_i
+       n_collective[1] = sum_NN\, n_i * n_i+1 (i=x,y,z)
+       n_collective[2] = sum_{diagonal in plane}\, n_i * n_j
+       n_collective[3] = sum_{cubic diagonal}\, n_i * n_j
+       n_collective[4] = sum_{principal planes}\, n_i * n_j * n_k * n_l
+       n_collective[5] = sum_{diagonal planes}\, n_i * n_j * n_k * n_l
+       n_collective[6] = sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
+       n_collective[7] = sum_NNN\, n_i * n_i+2 (i=x,y,z)
+
+       TODO: call from Executive which loads configs from ./netlib/n*.dat
+    */
     b = b_blocking;
 
     coarse_lattice.set_dimensions(b);
@@ -59,19 +72,6 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
     std::ofstream ndump;
 
     int i,j,k;
-    int ib,jb,kb;
-
-    // collective variables for each MC config
-    // n_collective[0] = sum\, n_i
-    // n_collective[1] = sum_NN\, n_i * n_i+1 (i=x,y,z)
-    // n_collective[2] = sum_{diagonal in plane}\, n_i * n_j
-    // n_collective[3] = sum_{cubic diagonal}\, n_i * n_j
-    // n_collective[4] = sum_{principal planes}\, n_i * n_j * n_k * n_l
-    // n_collective[5] = sum_{diagonal planes}\, n_i * n_j * n_k * n_l
-    // n_collective[6] = sum_{tetrahedral vertices}\, n_i * n_j * n_k * n_l
-    // n_collective[7] = sum_NNN\, n_i * n_i+2 (i=x,y,z)
-
-    int celli,cellj,cellk,celll;
 
     double n_tmp;
 
@@ -81,6 +81,7 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
 
     double n_i,n_j,n_k,n_l;
 
+    // random shuffle of the blocking boundaries
     if (b>1)
     {
         bshift = rand() % b;
@@ -91,8 +92,6 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
     }
 
     i = 0; j = 0; k = 0;
-
-    ib = 0; jb = 0; kb = 0;
 
     for (i=0; i<(int)(pow(Lb,dim)); i++)
     {
@@ -311,6 +310,10 @@ void blocking::coarse_grain_field(int* n, int b_blocking)
 
 void blocking::lattice_map(int bshift, int* ub)
 {
+    /* calculate a lattice map, return in elements of ub,
+       which specifies which coarse block each of the original
+       lattice sites belongs to
+    */
     int ri[3];
 
     int i, j;

@@ -32,6 +32,8 @@ using namespace std;
 
 pca::pca()
 {
+    /* principal component analysis
+    */
     L[0] = 8;
     L[1] = 16;
 
